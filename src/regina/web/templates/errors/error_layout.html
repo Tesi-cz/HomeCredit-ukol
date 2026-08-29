@@ -1,0 +1,44 @@
+{#
+  Minimální rozvržení chybových stránek (design.md sekce 8).
+
+  Chybové stránky 403/404 se mohou zobrazit i uživateli v nestandardním stavu
+  (bez přihlášení, s neplatnou session). Proto nedědí z `base.html`, který
+  potřebuje přihlášenou osobu a navigaci — mají vlastní samostatné rozvržení,
+  které se vykreslí i s prázdným kontextem. Žádný stack trace ani konfigurace
+  se nezobrazuje (design.md sekce 8, R zadání „chybové stránky nesmí ukazovat
+  stack trace ani konfiguraci").
+
+  Vzhled používá tytéž brandové tokeny jako zbytek aplikace a servíruje CSS,
+  fonty a ikony z aplikace (R13.9) — žádné CDN.
+#}
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Chyba{% endblock %} — {{ app_name }}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="flex min-h-screen flex-col bg-bg-light font-body text-dark">
+  <main class="flex flex-1 items-center justify-center px-lg py-2xl">
+    <div class="flex max-w-md flex-col items-center gap-md text-center">
+      <span class="flex h-16 w-16 items-center justify-center rounded-full bg-hc-red/10 text-hc-red" aria-hidden="true">
+        <svg class="h-8 w-8"><use href="/static/icons/icons.svg#{% block icon %}varovani{% endblock %}"></use></svg>
+      </span>
+      <p class="font-heading text-h2 font-bold text-black">{% block code %}{% endblock %}</p>
+      <p class="font-heading text-h4 font-bold text-black">{% block heading %}{% endblock %}</p>
+      <p class="text-body text-gray">{% block message %}{% endblock %}</p>
+      <a
+        href="/"
+        class="mt-sm inline-flex items-center gap-sm rounded-pill bg-hc-yellow px-lg py-sm font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+      >
+        <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#zpet"></use></svg>
+        <span>Zpět na úvod</span>
+      </a>
+    </div>
+  </main>
+  <footer class="border-t border-border-gray bg-white px-lg py-md text-center text-caption text-gray-light">
+    <p>© Home Credit International</p>
+  </footer>
+</body>
+</html>

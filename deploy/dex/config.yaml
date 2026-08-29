@@ -1,0 +1,48 @@
+# Dex — poskytovatel identity pro LOKÁLNÍ BĚH.
+#
+# Tento soubor slouží výhradně k tomu, aby šla aplikace spustit a vyzkoušet na
+# vlastním stroji. V žádném reálném nasazení se nepoužije — tam se
+# `OIDC_*` proměnné přesměrují na Microsoft Entra ID, viz README.
+#
+# Účty níže jsou SYNTETICKÉ a jejich hesla jsou veřejně zdokumentovaná v README.
+# Nejsou to tajemství: nechrání žádná data a existují jen v tomto kontejneru.
+# Tajemství klienta se sem NEZAPISUJE, čte se z proměnné prostředí.
+
+# Issuer musí být tatáž adresa pro prohlížeč i pro aplikační kontejner.
+# `host.docker.internal` to splňuje: Docker Desktop ho zapisuje do hosts na
+# hostiteli (dosáhne na něj prohlížeč) a zároveň ho rozlišuje uvnitř kontejnerů.
+# Díky tomu nejsou potřeba žádné ruční úpravy na straně uživatele.
+issuer: http://host.docker.internal:5556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  # Bez souhlasové obrazovky, aby se demo tok nezdržoval.
+  skipApprovalScreen: true
+
+staticClients:
+  - id: regina
+    name: REGINA
+    # Tajemství se čte z prostředí, ne z tohoto souboru.
+    secretEnv: OIDC_CLIENT_SECRET
+    redirectURIs:
+      - http://localhost:8000/auth/callback
+
+enablePasswordDB: true
+
+staticPasswords:
+  # heslo: demo-spravce
+  - email: spravce@regina.local
+    hash: "$2b$10$A8fTii3YpqJaoo0rYUZlZO6MCe5hXy9WB9SgjBeONTVoLJTvOG4Ey"
+    username: Jana Nováková
+    userID: 11111111-1111-1111-1111-111111111111
+
+  # heslo: demo-uzivatel
+  - email: uzivatel@regina.local
+    hash: "$2b$10$b5QoaJbczcYN2tzJVaGGC.BbXcRLQJfbDdoPx9Q2yeFB2nYLfoK.m"
+    username: Petr Svoboda
+    userID: 22222222-2222-2222-2222-222222222222

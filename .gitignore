@@ -25,4 +25,11 @@ Thumbs.db
 *.log
 
 # Kiro
-.kiro/
+# Specifikace v .kiro/specs a steering v .kiro/steering jsou VERZOVANÉ — jsou
+# součástí odevzdání a dokládají způsob práce. Ignoruje se jen lokální stav.
+.kiro/**/tasks.meta.json
+.kiro/settings/
+.venv-probe/
+
+# Docs
+.docs

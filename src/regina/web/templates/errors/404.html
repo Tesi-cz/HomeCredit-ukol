@@ -1,0 +1,13 @@
+{#
+  Stránka 404 — Nenalezeno (design.md sekce 8).
+
+  Vrací ji handler `StarletteHTTPException` pro stav 404 (main.create_app).
+  Bez stack trace, bez konfigurace. Renderuje se i bez přihlášené osoby —
+  dědí z minimálního `error_layout.html`, ne z `base.html`.
+#}
+{% extends "errors/error_layout.html" %}
+{% block title %}Nenalezeno{% endblock %}
+{% block icon %}hledat{% endblock %}
+{% block code %}404{% endblock %}
+{% block heading %}Stránka nenalezena{% endblock %}
+{% block message %}Požadovaná stránka nebo záznam neexistuje nebo byl odstraněn. Zkontrolujte adresu, nebo se vraťte na úvod.{% endblock %}

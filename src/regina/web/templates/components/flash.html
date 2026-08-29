@@ -1,0 +1,47 @@
+{#
+  Hlášení o výsledku akce — toast (R13.8, ui.md sekce 3).
+
+  Vykreslí jedno hlášení, pokud je v kontextu `flash` (viz web/flash.py a
+  page_context). Tři varianty: success (hotovo), error (varovani), info (info) —
+  liší se ikonou a barvou. Text je vždy český a přichází z routy.
+
+  Zavření: odkaz s ikonou `zavrit` míří na aktuální cestu bez query parametrů,
+  takže hlášení po kliknutí zmizí i bez JavaScriptu (rozhraní se musí obejít
+  bez CDN i bez skriptů). Vedlejší efekt — zavření zahodí i případné filtry v
+  query stringu — je u jednorázového potvrzení přijatelný.
+
+  `request` se předává explicitně, protože makro nemá přístup ke kontextu
+  volající šablony (import bez `with context`); potřebuje ho pro odkaz zavření
+  na aktuální cestu.
+
+  Použití (base.html ho vloží automaticky, pokud `flash` existuje):
+    from "components/flash.html" import flash_toast
+    flash_toast(flash, request)
+#}
+{% macro flash_toast(flash, request) %}
+{% if flash %}
+{% set styles = {
+  "success": {"box": "border-teal/40 bg-teal/10 text-navy", "icon": "hotovo", "icon_color": "text-teal"},
+  "error": {"box": "border-hc-red/40 bg-hc-red/10 text-hc-red", "icon": "varovani", "icon_color": "text-hc-red"},
+  "info": {"box": "border-blue/30 bg-blue/5 text-blue", "icon": "info", "icon_color": "text-blue"},
+} %}
+{% set style = styles.get(flash.type, styles["info"]) %}
+<div
+  class="mb-lg flex items-start gap-md rounded-md border px-md py-sm {{ style.box }}"
+  role="status"
+  aria-live="polite"
+>
+  <svg class="mt-xs h-5 w-5 shrink-0 {{ style.icon_color }}" aria-hidden="true">
+    <use href="/static/icons/icons.svg#{{ style.icon }}"></use>
+  </svg>
+  <p class="flex-1 text-body">{{ flash.text }}</p>
+  <a
+    href="{{ request.url.path }}"
+    class="shrink-0 rounded-sm p-xs text-current transition-opacity hover:opacity-70"
+    aria-label="Zavřít hlášení"
+  >
+    <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#zavrit"></use></svg>
+  </a>
+</div>
+{% endif %}
+{%- endmacro %}

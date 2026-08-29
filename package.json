@@ -1,0 +1,12 @@
+{
+  "name": "regina-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build rozhrani REGINA. Nepatri do behoveho prostredi, pouzije se jen pri sestaveni image.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/regina/web/static/css/input.css -o ./src/regina/web/static/css/app.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.19"
+  }
+}

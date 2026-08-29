@@ -1,0 +1,97 @@
+# REGINA — kompletní běh na jeden příkaz.
+#
+#   Copy-Item .env.example .env
+#   docker compose up
+#
+# Tři služby: databáze, poskytovatel identity, aplikace. Žádný další ruční krok
+# není potřeba — schéma i syntetická data vznikají při startu (R12.1).
+
+name: regina
+
+services:
+  # --- Databáze -------------------------------------------------------------
+  # Port se ZÁMĚRNĚ nepublikuje. Databázi potřebuje jen aplikace po interní
+  # síti compose. Odpadá tím nejčastější příčina selhání u cizího člověka:
+  # obsazený port 5432 na hostiteli.
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?chybi POSTGRES_DB, zkopiruj .env.example na .env}
+      POSTGRES_USER: ${POSTGRES_USER:?chybi POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?chybi POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  # --- Poskytovatel identity pro lokální běh --------------------------------
+  # Skutečný OIDC poskytovatel s discovery endpointem, ne atrapa. Náš klient tak
+  # mluví reálným protokolem a záměna za Microsoft Entra ID je změna
+  # konfigurace, ne přepis kódu.
+  #
+  # Issuer je `host.docker.internal`, protože tatáž adresa musí být dosažitelná
+  # z prohlížeče uživatele i z aplikačního kontejneru. Docker Desktop ji
+  # zapisuje do hosts na hostiteli a zároveň ji rozlišuje uvnitř kontejnerů.
+  dex:
+    image: dexidp/dex:v2.44.0
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    environment:
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?chybi OIDC_CLIENT_SECRET}
+    volumes:
+      - ./deploy/dex/config.yaml:/etc/dex/config.yaml:ro
+    ports:
+      - "5556:5556"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:5556/dex/.well-known/openid-configuration"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  # --- Aplikace -------------------------------------------------------------
+  app:
+    build:
+      context: .
+    depends_on:
+      db:
+        condition: service_healthy
+      dex:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?chybi DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET:?chybi SESSION_SECRET}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      BASE_URL: ${BASE_URL:-http://localhost:8000}
+      OIDC_ISSUER: ${OIDC_ISSUER:?chybi OIDC_ISSUER}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:?chybi OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?chybi OIDC_CLIENT_SECRET}
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email groups}
+      OIDC_EMAIL_CLAIM: ${OIDC_EMAIL_CLAIM:-email}
+      OIDC_NAME_CLAIM: ${OIDC_NAME_CLAIM:-name}
+      OIDC_ROLE_CLAIM: ${OIDC_ROLE_CLAIM:-groups}
+      OIDC_ADMIN_ROLE_VALUE: ${OIDC_ADMIN_ROLE_VALUE:-regina-admins}
+      DEPARTMENTS: ${DEPARTMENTS:-Finance,HR,IT Ops,Risk,Marketing,Provoz}
+      RETENTION_AUDIT_LOG_DAYS: ${RETENTION_AUDIT_LOG_DAYS:-365}
+      RETENTION_DECOMMISSIONED_APP_DAYS: ${RETENTION_DECOMMISSIONED_APP_DAYS:-730}
+      RETENTION_INTERVAL_HOURS: ${RETENTION_INTERVAL_HOURS:-24}
+      RETENTION_ENABLED: ${RETENTION_ENABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SEED_ON_START: ${SEED_ON_START:-true}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  db-data:

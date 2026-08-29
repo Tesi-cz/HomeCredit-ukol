@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{#
+  Přepis klasifikace správcem (úkol 15.2/13.2, ui.md sekce 7, R7).
+
+  Formulář vyhrazený roli Admin (guard `require_override_classification` na GET
+  i POST). Admin zvolí novou klasifikaci a **povinně** uvede důvod. Prázdný
+  důvod routa odmítne a formulář se vrátí s českou chybou u pole. Formulář nese
+  CSRF token (úkol 6.4).
+#}
+
+{% block title %}Přepsat klasifikaci{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-lg">
+
+  {# Drobenka zpět na detail (R4.10). #}
+  <nav aria-label="Drobenková navigace" class="flex items-center gap-xs text-caption text-gray">
+    <a href="/registr" class="font-bold text-navy hover:underline">Registr</a>
+    <svg class="h-4 w-4 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+    <a href="/registr/{{ application.id }}" class="font-bold text-navy hover:underline">{{ application.name }}</a>
+    <svg class="h-4 w-4 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+    <span class="truncate text-dark">Přepis klasifikace</span>
+  </nav>
+
+  <article class="rounded-lg border border-border-gray bg-white p-lg">
+    <h2 class="font-heading text-h3 font-bold text-black">Přepsat klasifikaci</h2>
+    <p class="mt-md text-body text-dark">
+      Přepisujete klasifikaci aplikace <span class="font-bold">{{ application.name }}</span>.
+      Přepis se zaznamená do historie klasifikace s uvedeným důvodem a do auditu.
+    </p>
+
+    {% if errors %}
+    <div class="mt-md flex items-start gap-md rounded-md border border-hc-red/40 bg-hc-red/10 px-md py-sm text-hc-red" role="alert">
+      <svg class="mt-xs h-5 w-5 shrink-0" aria-hidden="true"><use href="/static/icons/icons.svg#varovani"></use></svg>
+      <p class="flex-1 text-body">Formulář obsahuje chyby. Zkontrolujte označená pole níže.</p>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/registr/{{ application.id }}/prepis-klasifikace" class="mt-lg space-y-lg">
+      <input type="hidden" name="csrf_token" value="{{ get_csrf_token(request) }}">
+
+      <div>
+        <label for="classification" class="block text-caption font-bold text-dark">Nová klasifikace</label>
+        <select
+          id="classification"
+          name="classification"
+          class="mt-xs h-10 w-full rounded-md border border-border-input bg-white px-md text-body text-dark"
+        >
+          {% for level in classifications %}
+          <option value="{{ level }}" {% if values.get("classification") == level|string %}selected{% endif %}>
+            {{ classification_label(level) }}
+          </option>
+          {% endfor %}
+        </select>
+        {% if errors.get("classification") %}
+        <ul class="mt-xs space-y-xs">
+          {% for message in errors["classification"] %}
+          <li class="flex items-center gap-xs text-caption text-hc-red">
+            <svg class="h-4 w-4 shrink-0" aria-hidden="true"><use href="/static/icons/icons.svg#varovani"></use></svg>
+            <span>{{ message }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+
+      <div>
+        <label for="reason" class="block text-caption font-bold text-dark">Důvod přepisu (povinný)</label>
+        <textarea
+          id="reason"
+          name="reason"
+          rows="4"
+          class="mt-xs w-full rounded-md border border-border-input bg-white px-md py-sm text-body text-dark"
+        >{{ values.get("reason", "") }}</textarea>
+        {% if errors.get("reason") %}
+        <ul class="mt-xs space-y-xs">
+          {% for message in errors["reason"] %}
+          <li class="flex items-center gap-xs text-caption text-hc-red">
+            <svg class="h-4 w-4 shrink-0" aria-hidden="true"><use href="/static/icons/icons.svg#varovani"></use></svg>
+            <span>{{ message }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-wrap items-center gap-sm">
+        <button
+          type="submit"
+          class="flex h-10 items-center gap-sm rounded-md bg-navy px-lg font-heading font-bold text-white transition-colors hover:bg-navy/90"
+        >
+          <span>Přepsat klasifikaci</span>
+        </button>
+        <a
+          href="/registr/{{ application.id }}"
+          class="flex h-10 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+        >
+          <span>Zrušit</span>
+        </a>
+      </div>
+    </form>
+  </article>
+
+</section>
+{% endblock %}

@@ -1,0 +1,27 @@
+# Do build kontextu nepatří nic, co image nepotřebuje, a už vůbec ne tajemství.
+
+.env
+*.env
+!.env.example
+
+.git
+.gitignore
+.kiro
+.venv
+.venv-probe
+venv
+
+node_modules
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+
+design
+prompts
+tests
+README.md
+docker-compose.yaml
+
+# Přeložené CSS vzniká v build stupni, nekopíruje se z hostitele.
+src/regina/web/static/css/app.css

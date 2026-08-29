@@ -1,0 +1,66 @@
+/*
+ * Vstupní CSS pro Tailwind.
+ *
+ * Fonty se servírují z aplikace, ne z CDN — rozhraní se musí vykreslit správně
+ * i bez připojení k internetu (R13.9). Soubory woff2 pocházejí z
+ * `brand-assets/fonts/` a kopírují se do image při sestavení.
+ */
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/static/fonts/Montserrat-ExtraBold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Montserrat-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/SourceSansPro-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/SourceSansPro-Bold.woff2') format('woff2');
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg-light font-body text-body text-dark antialiased;
+  }
+
+  /* Nadpisy stránek používají Montserrat, tělo textu Source Sans Pro. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading text-black;
+  }
+
+  /* Viditelné zaměření klávesnicí je podmínka přístupnosti. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-hc-red ring-offset-2;
+  }
+}
