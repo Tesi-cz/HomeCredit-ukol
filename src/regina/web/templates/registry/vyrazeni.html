@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{#
+  Potvrzení vyřazení / návratu z vyřazení (úkol 15.2, ui.md sekce 7, R5.12–R5.14).
+
+  Malá potvrzovací stránka vyhrazená roli Admin (guard `require_decommission`
+  na GET i POST). Podle aktuálního stavu záznamu ukáže buď potvrzení vyřazení,
+  nebo návratu z vyřazení — obojí míří na stejný POST `/registr/{id}/vyrazeni`,
+  routa akci určí ze stavu záznamu. Formulář nese CSRF token (úkol 6.4).
+#}
+
+{% block title %}{{ "Vrátit z vyřazení" if is_decommissioned else "Vyřadit aplikaci" }}{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-lg">
+
+  {# Drobenka zpět na detail (R4.10). #}
+  <nav aria-label="Drobenková navigace" class="flex items-center gap-xs text-caption text-gray">
+    <a href="/registr" class="font-bold text-navy hover:underline">Registr</a>
+    <svg class="h-4 w-4 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+    <a href="/registr/{{ application.id }}" class="font-bold text-navy hover:underline">{{ application.name }}</a>
+    <svg class="h-4 w-4 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+    <span class="truncate text-dark">{{ "Návrat z vyřazení" if is_decommissioned else "Vyřazení" }}</span>
+  </nav>
+
+  <article class="rounded-lg border border-border-gray bg-white p-lg">
+    {% if is_decommissioned %}
+    <h2 class="font-heading text-h3 font-bold text-black">Vrátit záznam z vyřazení</h2>
+    <p class="mt-md text-body text-dark">
+      Chystáte se vrátit aplikaci <span class="font-bold">{{ application.name }}</span> ze stavu
+      Vyřazená zpět do provozu. Uložený okamžik vyřazení se vymaže, takže retenční
+      lhůta začne znovu až při případném dalším vyřazení.
+    </p>
+    {% else %}
+    <h2 class="font-heading text-h3 font-bold text-black">Vyřadit aplikaci</h2>
+    <p class="mt-md text-body text-dark">
+      Chystáte se vyřadit aplikaci <span class="font-bold">{{ application.name }}</span>.
+      Záznam přejde do stavu Vyřazená, uloží se okamžik vyřazení a od něj začne
+      běžet retenční lhůta. Záznam se z databáze nemaže, jen se skryje z výchozího
+      výpisu.
+    </p>
+    {% endif %}
+
+    <form method="post" action="/registr/{{ application.id }}/vyrazeni" class="mt-lg flex flex-wrap items-center gap-sm">
+      <input type="hidden" name="csrf_token" value="{{ get_csrf_token(request) }}">
+      {% if is_decommissioned %}
+      <button
+        type="submit"
+        class="flex h-10 items-center gap-sm rounded-md bg-navy px-lg font-heading font-bold text-white transition-colors hover:bg-navy/90"
+      >
+        <span>Vrátit z vyřazení</span>
+      </button>
+      {% else %}
+      <button
+        type="submit"
+        class="flex h-10 items-center gap-sm rounded-md bg-hc-red px-lg font-heading font-bold text-white transition-colors hover:bg-hc-red/90"
+      >
+        <span>Vyřadit aplikaci</span>
+      </button>
+      {% endif %}
+      <a
+        href="/registr/{{ application.id }}"
+        class="flex h-10 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+      >
+        <span>Zrušit</span>
+      </a>
+    </form>
+  </article>
+
+</section>
+{% endblock %}

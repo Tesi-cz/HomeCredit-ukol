@@ -1,0 +1,13 @@
+{#
+  Stránka 403 — Přístup odepřen (design.md sekce 8, R2.3).
+
+  Vrací ji handler `AuthorizationError` (auth/deps.py) i handler `CsrfError`
+  (auth/csrf.py). Bez stack trace, bez konfigurace. Renderuje se i bez
+  přihlášené osoby — dědí z minimálního `error_layout.html`, ne z `base.html`.
+#}
+{% extends "errors/error_layout.html" %}
+{% block title %}Přístup odepřen{% endblock %}
+{% block icon %}zamek{% endblock %}
+{% block code %}403{% endblock %}
+{% block heading %}Přístup odepřen{% endblock %}
+{% block message %}Na tuto akci nemáte oprávnění. Pokud si myslíte, že jde o omyl, obraťte se na správce registru.{% endblock %}

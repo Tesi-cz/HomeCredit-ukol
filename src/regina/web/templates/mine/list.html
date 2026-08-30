@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{#
+  Obrazovka „Moje aplikace" (ui.md sekce 4, R3.10/3.11/3.12).
+
+  Vstupní obrazovka po přihlášení. Zobrazuje záznamy, kde je přihlášený uživatel
+  členem odpovědné trojice — tedy ty, které smí editovat. Nad hero blokem
+  s hledáním a výzvou k registraci je mřížka karet: tři sloupce na desktopu,
+  dva na tabletu, jeden na mobilu.
+
+  Samotné výsledky (mřížka + stránkování + prázdné stavy) jsou v partialu
+  `mine/_results.html`, vykresleném uvnitř kontejneru `#vysledky-moje`.
+  Živé hledání (viz JS níže) tentýž partial načítá z `GET /moje/fragment` a
+  obsahem kontejneru ho nahrazuje — filtruje pořád databáze (R3.6), JS jen
+  posílá dotaz a překresluje výsledek.
+
+  Hledání se odesílá i metodou GET (submit formuláře), takže funguje i bez
+  JavaScriptu (progresivní vylepšení): bez JS se chová jako dřív, s JS se
+  filtruje živě při psaní.
+#}
+
+{% block title %}Moje aplikace{% endblock %}
+
+{% block content %}
+<section class="space-y-lg">
+
+  {# ---------- Hero blok ---------- #}
+  <div class="rounded-lg border border-border-gray bg-white p-lg desktop:flex desktop:items-center desktop:justify-between desktop:gap-lg">
+    <div class="min-w-0">
+      <h2 class="font-heading text-h3 font-bold text-black">Moje aplikace</h2>
+      <p class="mt-xs text-body text-gray">Spravujte své existující aplikace nebo registrujte nové.</p>
+    </div>
+
+    <div class="mt-md flex flex-col gap-sm desktop:mt-0 desktop:flex-row desktop:items-center">
+      {# Hledání podle názvu (R3.2). `data-live-search` propojuje formulář s JS
+         živého hledání; `action`/`method=get` zajišťují funkčnost i bez JS. #}
+      <form
+        method="get"
+        action="/moje"
+        role="search"
+        class="relative"
+        data-live-search
+        data-fragment-url="/moje/fragment"
+        data-target="#vysledky-moje"
+      >
+        <label for="hledat-moje" class="sr-only">Hledat mezi mými aplikacemi</label>
+        <svg class="pointer-events-none absolute left-md top-1/2 h-5 w-5 -translate-y-1/2 text-gray-light" aria-hidden="true">
+          <use href="/static/icons/icons.svg#hledat"></use>
+        </svg>
+        <input
+          type="search"
+          id="hledat-moje"
+          name="q"
+          value="{{ selected.q }}"
+          placeholder="Hledat mezi mými aplikacemi..."
+          autocomplete="off"
+          class="w-full rounded-full border border-border-input bg-bg-warm py-sm pl-2xl pr-md text-body text-dark placeholder:text-gray-light desktop:w-72"
+        >
+      </form>
+
+      {# Výzva k registraci nového záznamu (ui.md sekce 4). Míří na cestu
+         primární akce, aby zůstala jediným zdrojem pravdy. #}
+      <a
+        href="{{ primary_action.href }}"
+        class="flex items-center justify-center gap-sm rounded-pill bg-hc-yellow px-lg py-sm font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+      >
+        <svg class="h-5 w-5 shrink-0" aria-hidden="true"><use href="/static/icons/icons.svg#nova-aplikace"></use></svg>
+        <span>Registrovat novou aplikaci</span>
+      </a>
+    </div>
+  </div>
+
+  {# ---------- Výsledky (živě překreslované) ---------- #}
+  {# `aria-live="polite"` oznámí čtečce změnu výsledků po dopsání hledání. #}
+  <div id="vysledky-moje" aria-live="polite">
+    {% include "mine/_results.html" %}
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/live-search.js" defer></script>
+{% endblock %}

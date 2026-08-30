@@ -1,0 +1,108 @@
+{#
+  Stránkování (ui.md sekce 5; R3.5, R13 „Zobrazeno 1–20 z 128 záznamů").
+
+  Vykreslí text rozsahu, čísla stránek a tlačítka Předchozí/Další
+  (chevron-left/right). Vstupem je objekt `Pagination` z `web/pagination.py`,
+  který drží veškerou matematiku — komponenta nic nepočítá, jen zobrazuje.
+
+  Odkazy na stránky staví globál `page_url(request, cislo)`, který zachová
+  stávající vyhledávání a filtry a přepíše jen parametr `page`.
+
+  `request` se předává explicitně, protože makro nemá přístup ke kontextu
+  volající šablony (import bez `with context`); `page_url` ho potřebuje pro
+  sestavení odkazů se zachovanými filtry.
+
+  Volitelný `export_href`: když je předán (registr pro roli Admin), vykreslí se
+  vpravo v liště malý decentní odkaz „Export CSV". Je to sekundární akce pro
+  málokoho, proto bydlí dole u stránkování, ne mezi primárními filtry.
+
+  Použití:
+    from "components/pagination.html" import pagination_bar
+    pagination_bar(pagination, request)
+    pagination_bar(pagination, request, export_href="/export/registr?...")
+#}
+{% macro pagination_bar(pagination, request, export_href=none) %}
+<nav class="flex flex-col items-center justify-between gap-md border-t border-border-gray bg-white px-lg py-md desktop:flex-row" aria-label="Stránkování">
+  {# Text rozsahu (normativní český tvar dle R13) + volitelný Export CSV. #}
+  <div class="flex items-center gap-md">
+    <p class="text-caption text-gray-light">
+      Zobrazeno {{ pagination.from_index }}–{{ pagination.to_index }} z {{ pagination.total }} záznamů
+    </p>
+    {% if export_href %}
+    <a
+      href="{{ export_href }}"
+      class="flex items-center gap-xs text-caption text-gray-light transition-colors hover:text-navy hover:underline"
+      title="Exportovat aktuální výběr do CSV"
+    >
+      <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#export"></use></svg>
+      <span>Export CSV</span>
+    </a>
+    {% endif %}
+  </div>
+
+  {% if pagination.total_pages > 1 %}
+  <ul class="flex items-center gap-xs">
+    {# Předchozí #}
+    <li>
+      {% if pagination.has_previous %}
+      <a
+        href="{{ page_url(request, pagination.previous_page) }}"
+        class="flex h-9 items-center gap-xs rounded-md border border-border-gray px-md text-body text-dark transition-colors hover:bg-bg-warm"
+        rel="prev"
+      >
+        <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-left"></use></svg>
+        <span>Předchozí</span>
+      </a>
+      {% else %}
+      <span
+        class="flex h-9 cursor-not-allowed items-center gap-xs rounded-md border border-border-gray px-md text-body text-gray-light opacity-50"
+        aria-disabled="true"
+      >
+        <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-left"></use></svg>
+        <span>Předchozí</span>
+      </span>
+      {% endif %}
+    </li>
+
+    {# Čísla stránek #}
+    {% for cislo in pagination.pages %}
+    <li>
+      {% if cislo == pagination.page %}
+      <span
+        class="flex h-9 w-9 items-center justify-center rounded-md bg-navy font-bold text-white"
+        aria-current="page"
+      >{{ cislo }}</span>
+      {% else %}
+      <a
+        href="{{ page_url(request, cislo) }}"
+        class="flex h-9 w-9 items-center justify-center rounded-md border border-border-gray text-body text-dark transition-colors hover:bg-bg-warm"
+      >{{ cislo }}</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+
+    {# Další #}
+    <li>
+      {% if pagination.has_next %}
+      <a
+        href="{{ page_url(request, pagination.next_page) }}"
+        class="flex h-9 items-center gap-xs rounded-md border border-border-gray px-md text-body text-dark transition-colors hover:bg-bg-warm"
+        rel="next"
+      >
+        <span>Další</span>
+        <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+      </a>
+      {% else %}
+      <span
+        class="flex h-9 cursor-not-allowed items-center gap-xs rounded-md border border-border-gray px-md text-body text-gray-light opacity-50"
+        aria-disabled="true"
+      >
+        <span>Další</span>
+        <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+      </span>
+      {% endif %}
+    </li>
+  </ul>
+  {% endif %}
+</nav>
+{%- endmacro %}

@@ -1,0 +1,100 @@
+{% from "components/badges.html" import state_badge, classification_badge %}
+{% from "components/pagination.html" import pagination_bar %}
+{% from "components/empty_state.html" import empty_state %}
+
+{#
+  Výsledky obrazovky Registr (tabulka + stránkování + prázdný stav). Vyčleněno
+  z `registry/list.html` do partialu, aby ho šlo vykreslit samostatně pro
+  **živé filtrování** (fragment endpoint `GET /registr/fragment`): celá stránka
+  renderuje partial uvnitř kontejneru `#vysledky-registr`, fragment vrací jen
+  tenhle partial a JS jím obsah kontejneru nahradí při psaní v hledání i při
+  změně filtrů — bez tlačítka Filtrovat.
+
+  Nezávisí na `base.html` — je to jen vnitřek kontejneru. Vstupy z kontextu jsou
+  stejné pro stránku i fragment (`applications`, `owner_names`, `pagination`,
+  `is_admin`, `request`).
+#}
+
+{% if applications %}
+{# Jeden scrollbar: tabulka nemá vlastní `overflow-auto` s pevnou výškou, takže
+   scrolluje jen stránka (dřív tu byl vnitřní posuvník navíc). Hlavička zůstává
+   sticky vůči stránce. #}
+<div class="overflow-hidden rounded-lg border border-border-gray bg-white">
+  <div>
+    <table class="w-full border-collapse text-left text-body">
+      {# Hlavička tabulky. Sticky se zde nepoužívá: scrolluje celá stránka
+         (jen jeden posuvník), a sticky uvnitř karty vytvářel prázdnou mezeru
+         nad hlavičkou. Přehlednost drží jeden posuvník a stránkování po 20. #}
+      <thead class="bg-white">
+        <tr class="border-b border-border-gray text-caption uppercase tracking-wide text-gray-light">
+          <th scope="col" class="px-lg py-md font-bold">Název</th>
+          <th scope="col" class="px-lg py-md font-bold">Vlastník</th>
+          <th scope="col" class="px-lg py-md font-bold">Útvar</th>
+          <th scope="col" class="px-lg py-md font-bold">Klasifikace</th>
+          <th scope="col" class="px-lg py-md font-bold">AI model</th>
+          <th scope="col" class="px-lg py-md font-bold">Stav</th>
+          {% if is_admin %}
+          <th scope="col" class="px-lg py-md text-right font-bold">Akce</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for zaznam in applications %}
+        {# Zebra striping (ui.md sekce 5): sudé řádky mají teplé pozadí. #}
+        <tr class="border-b border-border-gray/60 {% if loop.index0 is odd %}bg-bg-warm{% endif %} hover:bg-warm-bg">
+          <td class="px-lg py-md">
+            <a href="/registr/{{ zaznam.id }}" class="font-bold text-navy hover:underline">{{ zaznam.name }}</a>
+          </td>
+          <td class="px-lg py-md text-dark">{{ owner_names.get(zaznam.owner_user_id, "—") }}</td>
+          <td class="px-lg py-md text-dark">{{ zaznam.department }}</td>
+          <td class="px-lg py-md">
+            {{ classification_badge(zaznam.classification | classification_enum) }}
+          </td>
+          <td class="px-lg py-md text-dark">{{ zaznam.ai_model or "—" }}</td>
+          <td class="px-lg py-md">
+            {{ state_badge(zaznam.lifecycle_state | lifecycle_enum) }}
+          </td>
+          {% if is_admin %}
+          <td class="px-lg py-md">
+            <div class="flex items-center justify-end gap-xs">
+              <a
+                href="/registr/{{ zaznam.id }}"
+                class="flex h-8 items-center gap-xs rounded-md border border-border-gray px-md text-caption text-dark transition-colors hover:bg-bg-warm"
+                title="Přepsat klasifikaci"
+              >
+                <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#prepsat"></use></svg>
+                <span>Přepsat klasifikaci</span>
+              </a>
+              <a
+                href="/registr/{{ zaznam.id }}"
+                class="flex h-8 items-center gap-xs rounded-md border border-border-gray px-md text-caption text-hc-red transition-colors hover:bg-hc-red/10"
+                title="Vyřadit"
+              >
+                <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#vyradit"></use></svg>
+                <span>Vyřadit</span>
+              </a>
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Stránkování s textem „Zobrazeno X–Y z N záznamů" (ui.md sekce 5, R3.5).
+     Export CSV (R10.1) je pro Admina decentně vedle textu rozsahu — sekundární
+     akce dole, ne mezi filtry. Honoruje aktuální filtry přes zkopírovaný query
+     string (R10.3). Vynucení je na backendu (`require_export`, R2.5). #}
+  {{ pagination_bar(
+      pagination,
+      request,
+      export_href=("/export/registr?" ~ request.url.query if request.url.query else "/export/registr") if is_admin else none
+  ) }}
+</div>
+{% else %}
+{{ empty_state(
+    nadpis="Žádné záznamy neodpovídají filtrům",
+    popis="Zkuste upravit hledaný výraz nebo filtry, případně zobrazit i vyřazené záznamy."
+) }}
+{% endif %}

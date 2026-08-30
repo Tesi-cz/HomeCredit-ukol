@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% from "components/badges.html" import state_badge, classification_badge %}
+
+{#
+  Detail záznamu (ui.md sekce 7, R4.1–R4.10).
+
+  Vidí ho každá přihlášená osoba (R4). Routa (`web/routes/registry.application_detail`)
+  předává hotová data — šablona jen vykresluje, nepočítá. Výčtové hodnoty se
+  vždy ukazují jako české popisky přes badge a `label(...)`, nikdy jako strojový
+  kód (R13.11).
+
+  Bloky:
+  - drobenka „Registr › {název}" s odkazem zpět na výpis (R4.1, R4.10);
+  - indikátor „Pouze pro čtení", když osoba nemá právo editovat (R4.8);
+  - hlavní karta: název, stav, klasifikace, popis, útvar, AI model (R4.2, R4.7);
+  - odpovědnost: vlastník, zástupce (je-li), technický správce — jménem a pozicí
+    (R4.3);
+  - klasifikace se zdrojem a datem posledního zápisu, u přepisu i důvod (R4.4,
+    R4.5);
+  - historie klasifikace od nejnovějšího (R4.6);
+  - akce řízené příznaky z `domain/rules` (R2.5): Upravit, Přepsat klasifikaci,
+    Vyřadit / Vrátit z vyřazení. Skrytí je pohodlnost — vynucení mají guardy
+    cílových cest.
+#}
+
+{% block title %}{{ application.name }}{% endblock %}
+
+{% macro person_row(role_label, person) %}
+  {# Řádek odpovědné osoby: role, jméno a pozice (R4.3). #}
+  <div class="flex items-start gap-md py-sm">
+    <span
+      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg-warm font-heading font-bold text-navy"
+      aria-hidden="true"
+    >{{ initials(person.display_name) if person else "?" }}</span>
+    <div class="min-w-0">
+      <p class="text-caption uppercase tracking-wide text-gray-light">{{ role_label }}</p>
+      {% if person %}
+      <p class="truncate text-body font-bold text-dark">{{ person.display_name }}</p>
+      <p class="truncate text-caption text-gray">{{ person.job_title or "Pozice neuvedena" }}</p>
+      {# E-mail osoby jako klikací odkaz (mailto), aby šel rovnou napsat. #}
+      <a
+        href="mailto:{{ person.email }}"
+        class="mt-xs flex items-center gap-xs text-caption text-navy hover:underline"
+      >
+        <svg class="h-4 w-4 shrink-0 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#email"></use></svg>
+        <span class="truncate">{{ person.email }}</span>
+      </a>
+      {% else %}
+      <p class="text-body text-gray-light">Osoba není k dispozici</p>
+      {% endif %}
+    </div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<section class="space-y-lg">
+
+  {# ---------- Drobenka + Zpět (R4.1, R4.10) ----------
+     Breadcrumb „Registr › {název}" větším písmem (text-h4) a na stejném řádku
+     vpravo tlačítko Zpět na výpis registru. #}
+  <div class="flex items-center justify-between gap-md">
+    <nav aria-label="Drobenková navigace" class="flex min-w-0 items-center gap-sm text-h4 font-heading font-bold">
+      <a href="/registr" class="text-navy hover:underline">Registr</a>
+      <svg class="h-5 w-5 shrink-0 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+      <span class="truncate text-black">{{ application.name }}</span>
+    </nav>
+
+    {# Zpět tam, odkud jsi přišel: `history.back()` vrátí na předchozí obrazovku
+       (Registr i Moje aplikace) podle toho, odkud byl detail otevřen. Když
+       historie není (přímý vstup přes odkaz), fallback míří na Registr i bez
+       JavaScriptu. #}
+    <a
+      href="/registr"
+      onclick="if (window.history.length > 1) { history.back(); return false; }"
+      class="flex h-10 shrink-0 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+    >
+      <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#zpet"></use></svg>
+      <span>Zpět</span>
+    </a>
+  </div>
+
+  {# ---------- Indikátor „Pouze pro čtení" (R4.8) ---------- #}
+  {% if read_only %}
+  <div class="flex items-center gap-sm rounded-md border border-border-input bg-bg-warm px-lg py-sm text-body text-gray">
+    <svg class="h-5 w-5 shrink-0 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#zamek"></use></svg>
+    <span><span class="font-bold">Pouze pro čtení.</span> Nejste vedeni v odpovědné trojici tohoto záznamu, proto ho nemůžete upravovat.</span>
+  </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 gap-lg desktop:grid-cols-3">
+
+    {# ================= Levý sloupec: hlavní karta + odpovědnost ============ #}
+    <div class="space-y-lg desktop:col-span-2">
+
+      {# ---------- Hlavní karta (R4.2, R4.7) ---------- #}
+      <article class="rounded-lg border border-border-gray bg-white p-lg">
+        <div class="flex flex-wrap items-start justify-between gap-md">
+          <div class="min-w-0">
+            <h2 class="font-heading text-h2 font-bold leading-tight text-black">{{ application.name }}</h2>
+            <p class="mt-xs text-caption text-gray-light">{{ application.department }}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-sm">
+            {{ state_badge(application.lifecycle_state | lifecycle_enum) }}
+            {{ classification_badge(application.classification | classification_enum) }}
+          </div>
+        </div>
+
+        {% if application.description %}
+        <p class="mt-md whitespace-pre-line text-body text-dark">{{ application.description }}</p>
+        {% else %}
+        <p class="mt-md text-body text-gray-light">Popis není vyplněn.</p>
+        {% endif %}
+
+        {# AI model použitý evidovanou aplikací (R4.7). #}
+        <div class="mt-lg border-t border-border-gray/60 pt-md">
+          <p class="text-caption uppercase tracking-wide text-gray-light">AI model</p>
+          {% if application.ai_model %}
+          <p class="mt-xs text-body font-bold text-dark">{{ application.ai_model }}</p>
+          {% else %}
+          <p class="mt-xs text-body text-gray">Žádný</p>
+          {% endif %}
+        </div>
+      </article>
+
+      {# ---------- Odpovědnost (R4.3) ---------- #}
+      <article class="rounded-lg border border-border-gray bg-white p-lg">
+        <h3 class="font-heading text-h4 font-bold text-black">Odpovědnost</h3>
+        <div class="mt-sm divide-y divide-border-gray/60">
+          {{ person_row("Vlastník", owner) }}
+          {% if deputy %}
+          {{ person_row("Zástupce", deputy) }}
+          {% endif %}
+          {{ person_row("Technický správce", tech_admin) }}
+        </div>
+      </article>
+
+    </div>
+
+    {# ================= Pravý sloupec: klasifikace + historie =============== #}
+    <div class="space-y-lg">
+
+      {# ---------- Klasifikace se zdrojem a datem (R4.4, R4.5) ---------- #}
+      <article class="rounded-lg border border-border-gray bg-white p-lg">
+        <h3 class="font-heading text-h4 font-bold text-black">Klasifikace</h3>
+        <div class="mt-md">
+          {{ classification_badge(application.classification | classification_enum) }}
+        </div>
+
+        {% if latest %}
+        <dl class="mt-md space-y-sm text-body">
+          <div class="flex justify-between gap-md">
+            <dt class="text-gray-light">Způsob zápisu</dt>
+            <dd class="font-bold text-dark">{{ label(latest.source | classification_source_enum) }}</dd>
+          </div>
+          <div class="flex justify-between gap-md">
+            <dt class="text-gray-light">Datum</dt>
+            <dd class="font-bold text-dark">{{ latest.created_at | datum }}</dd>
+          </div>
+          {% if latest.source == admin_override_source and latest.reason %}
+          <div class="pt-xs">
+            <dt class="text-gray-light">Důvod přepisu</dt>
+            <dd class="mt-xs whitespace-pre-line rounded-md bg-bg-warm px-md py-sm text-dark">{{ latest.reason }}</dd>
+          </div>
+          {% endif %}
+        </dl>
+        {% else %}
+        <p class="mt-md text-body text-gray">Klasifikace nebyla dosud zapsána.</p>
+        {% endif %}
+      </article>
+
+      {# ---------- Historie klasifikace od nejnovějšího (R4.6) ---------- #}
+      <article class="rounded-lg border border-border-gray bg-white p-lg">
+        <h3 class="font-heading text-h4 font-bold text-black">Historie klasifikace</h3>
+        {% if history %}
+        <ol class="mt-md space-y-md">
+          {% for radek in history %}
+          <li class="border-l-2 border-border-gray pl-md">
+            <div class="flex flex-wrap items-center justify-between gap-sm">
+              {{ classification_badge(radek.classification | classification_enum) }}
+              <span class="text-caption text-gray-light">{{ radek.created_at | datum_cas }}</span>
+            </div>
+            <p class="mt-xs text-caption text-gray">
+              {{ label(radek.source | classification_source_enum) }}
+              · {{ actor_names.get(radek.actor_user_id, "Neznámý aktér") }}
+            </p>
+            {% if radek.source == admin_override_source and radek.reason %}
+            <p class="mt-xs whitespace-pre-line rounded-md bg-bg-warm px-md py-sm text-caption text-dark">{{ radek.reason }}</p>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}
+        <p class="mt-md text-body text-gray">Zatím žádný zápis klasifikace.</p>
+        {% endif %}
+      </article>
+
+    </div>
+  </div>
+
+  {# ---------- Akce řízené příznaky z domain/rules (R2.5) ---------- #}
+  {% if can_edit or can_override or can_decommission %}
+  <div class="flex flex-wrap items-center gap-sm rounded-lg border border-border-gray bg-white p-lg">
+    {% if can_edit and not is_decommissioned %}
+    <a
+      href="/registr/{{ application.id }}/upravit"
+      class="flex h-10 items-center gap-sm rounded-md bg-navy px-lg font-heading font-bold text-white transition-colors hover:bg-navy/90"
+    >
+      <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#upravit"></use></svg>
+      <span>Upravit</span>
+    </a>
+    {% endif %}
+
+    {% if can_override %}
+    <a
+      href="/registr/{{ application.id }}/prepis-klasifikace"
+      class="flex h-10 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+    >
+      <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#prepsat"></use></svg>
+      <span>Přepsat klasifikaci</span>
+    </a>
+    {% endif %}
+
+    {% if can_decommission %}
+    {% if is_decommissioned %}
+    <a
+      href="/registr/{{ application.id }}/vyrazeni"
+      class="flex h-10 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+    >
+      <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#zpet"></use></svg>
+      <span>Vrátit z vyřazení</span>
+    </a>
+    {% else %}
+    <a
+      href="/registr/{{ application.id }}/vyrazeni"
+      class="flex h-10 items-center gap-sm rounded-md border border-border-gray px-lg text-hc-red transition-colors hover:bg-hc-red/10"
+    >
+      <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#vyradit"></use></svg>
+      <span>Vyřadit</span>
+    </a>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+
+</section>
+{% endblock %}

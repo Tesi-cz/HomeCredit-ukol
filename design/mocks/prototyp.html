@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<!--
+  REFERENČNÍ PROTOTYP — NENÍ součástí běžící aplikace.
+
+  Tento soubor je vizuální předloha (mock) prohlížená samostatně v prohlížeči.
+  Tahá fonty z Google Fonts a ikony z Lucide přes CDN jen proto, aby se dal
+  otevřít bez build kroku. Aplikace jej NEservíruje a nezávisí na něm.
+
+  Běžící aplikace (šablony v src/regina/web/templates, budované v úkolech 8.3+)
+  MUSÍ používat výhradně self-hostované zdroje bez CDN (R13.9):
+    - fonty:  /static/fonts/*.woff2         (viz static/css/input.css @font-face)
+    - ikony:  /static/icons/icons.svg#<id>  (SVG sprite, symboly níže)
+
+  Mocky se archivují do design/mocks v úkolu 20.5.
+-->
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registr aplikací | Home Credit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Source+Sans+Pro:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* === CSS CUSTOM PROPERTIES === */
+    :root {
+      --hc-red: #E11931;
+      --hc-red-dark: #D31027;
+      --hc-yellow: #FFDC50;
+      --hc-yellow-light: #FFDF43;
+      --color-black: #000000;
+      --color-dark: #282828;
+      --color-gray: #555555;
+      --color-gray-light: #656565;
+      --color-bg-light: #F1F4F5;
+      --color-bg-warm: #F6F6F6;
+      --color-border: #E4E4E4;
+      --color-border-input: #D1D1D1;
+      --color-white: #FFFFFF;
+      --color-teal: #2DB1D3;
+      --color-navy: #27455C;
+      --color-blue: #002C5A;
+      --color-warm-bg: #FAF5E0;
+      --font-heading: 'Montserrat', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-body: 'Source Sans Pro', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 25px;
+      --radius-full: 50px;
+      --sidebar-width: 250px;
+      --header-height: 49px;
+    }
+
+    /* === RESET === */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* === BASE === */
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      background-color: var(--color-bg-light);
+      color: var(--color-dark);
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      grid-template-rows: var(--header-height) 1fr;
+      min-height: 100vh;
+    }
+
+    /* === TYPOGRAPHY === */
+    h1, h2 {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      margin: 0 0 var(--space-md);
+    }
+
+    h3, h4 {
+      font-family: var(--font-body);
+      font-weight: 700;
+      margin: 0 0 var(--space-sm);
+    }
+
+    h1 { font-size: 56px; line-height: 1.2; }
+    h2 { font-size: 36px; line-height: 1.3; }
+    h3 { font-size: 28px; line-height: 1.3; }
+    h4 { font-size: 20px; line-height: 1.15; }
+
+    p {
+      margin: 0 0 var(--space-md);
+      line-height: 1.15;
+    }
+
+    /* === HEADER === */
+    .header {
+      position: sticky;
+      top: 0;
+      background-color: var(--color-white);
+      height: var(--header-height);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--space-lg);
+      border-bottom: 1px solid var(--color-border);
+      grid-column: 1 / -1;
+    }
+
+    .logo {
+      height: 32px;
+      width: auto;
+    }
+
+    /* === ROLE TOGGLE === */
+    .role-toggle {
+      display: flex;
+      gap: var(--space-sm);
+    }
+
+    .role-toggle button {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 700;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      padding: 6px 18px;
+      background-color: var(--color-white);
+      color: var(--color-dark);
+      cursor: pointer;
+      transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .role-toggle button:hover {
+      border-color: var(--hc-red);
+      color: var(--hc-red);
+    }
+
+    .role-toggle button.active {
+      background-color: var(--hc-red);
+      color: var(--color-white);
+      border-color: var(--hc-red);
+    }
+
+    /* === MAIN CONTENT === */
+    .main-content {
+      padding: var(--space-xl);
+      overflow-y: auto;
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    /* === TOAST CONTAINER === */
+    .toast-container {
+      position: fixed;
+      bottom: var(--space-lg);
+      right: var(--space-lg);
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    /* === SIDEBAR === */
+    .sidebar {
+      background-color: var(--color-dark);
+      padding-top: var(--space-xl);
+      overflow-y: auto;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: 12px var(--space-lg);
+      color: var(--color-white);
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 400;
+      transition: color 0.2s;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-link:hover {
+      color: var(--hc-red);
+    }
+
+    .nav-link.active {
+      color: var(--hc-red);
+      border-left-color: var(--hc-red);
+      font-weight: 700;
+    }
+
+    .nav-link i {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* === DASHBOARD STATS === */
+    .dashboard-stats {
+      display: flex;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background-color: var(--color-white);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md) var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 120px;
+      border: 1px solid var(--color-border);
+    }
+
+    .stat-card .stat-value {
+      font-family: var(--font-heading);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-dark);
+    }
+
+    .stat-card .stat-label {
+      font-size: 13px;
+      color: var(--color-gray);
+      margin-top: var(--space-xs);
+    }
+
+    /* === DASHBOARD TOOLBAR === */
+    .dashboard-toolbar {
+      display: flex;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+      align-items: center;
+    }
+
+    .search-input {
+      border-radius: var(--radius-full);
+      padding: 10px 20px;
+      border: 1px solid var(--color-border-input);
+      font-size: 16px;
+      font-family: var(--font-body);
+      width: 300px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--hc-red);
+    }
+
+    .search-input::placeholder {
+      color: var(--color-gray-light);
+    }
+
+    .view-toggle {
+      display: flex;
+      margin-left: auto;
+    }
+
+    .view-toggle button {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid var(--color-border);
+      padding: 8px 18px;
+      background-color: var(--color-white);
+      color: var(--color-dark);
+      cursor: pointer;
+      transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .view-toggle button:first-child {
+      border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+      border-right: none;
+    }
+
+    .view-toggle button:last-child {
+      border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+    }
+
+    .view-toggle button:hover {
+      border-color: var(--hc-red);
+      color: var(--hc-red);
+    }
+
+    .view-toggle button.active {
+      background-color: var(--hc-red);
+      color: var(--color-white);
+      border-color: var(--hc-red);
+    }
+
+    /* === CARDS GRID === */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .app-card {
+      background-color: var(--color-white);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.2s;
+      border: 1px solid var(--color-border);
+    }
+
+    .app-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--hc-red);
+    }
+
+    .app-card h4 {
+      font-size: 18px;
+      margin-bottom: var(--space-sm);
+      color: var(--color-dark);
+    }
+
+    .app-card .card-owner {
+      font-size: 14px;
+      color: var(--color-gray);
+      margin-bottom: var(--space-md);
+    }
+
+    .app-card .card-badges {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    /* === BADGES === */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* === APP TABLE === */
+    .app-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .app-table th {
+      background-color: var(--color-dark);
+      color: var(--color-white);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .app-table td {
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    .app-table tr:nth-child(even) {
+      background-color: var(--color-bg-warm);
+    }
+
+    .app-table tbody tr:hover {
+      background-color: var(--color-border);
+    }
+
+    .app-table tbody tr {
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    /* === EMPTY STATE === */
+    .empty-state {
+      text-align: center;
+      padding: var(--space-2xl);
+      color: var(--color-gray);
+    }
+
+    /* === DETAIL VIEW === */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: var(--space-md) var(--space-lg);
+      max-width: 700px;
+      margin-bottom: var(--space-xl);
+    }
+
+    .detail-label {
+      font-weight: 700;
+      color: var(--color-gray);
+    }
+
+    .detail-value {
+      color: var(--color-dark);
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: var(--space-md);
+      margin-top: var(--space-xl);
+      align-items: center;
+    }
+
+    .btn-primary {
+      background: var(--hc-yellow);
+      color: var(--color-black);
+      border-radius: var(--radius-pill);
+      height: 48px;
+      padding: 0 32px;
+      border: none;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      transition: filter 0.2s;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(0.95);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--hc-red);
+      border: none;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 16px;
+      font-family: var(--font-body);
+    }
+
+    /* === FORM === */
+    .form-container {
+      max-width: 600px;
+    }
+
+    .form-group {
+      margin-bottom: var(--space-lg);
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: var(--space-sm);
+      font-size: 14px;
+      color: var(--color-dark);
+    }
+
+    .form-input {
+      display: block;
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--color-border-input);
+      border-radius: var(--radius-md);
+      font-size: 16px;
+      font-family: var(--font-body);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--hc-red);
+    }
+
+    textarea.form-input {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: var(--space-md);
+      margin-top: var(--space-xl);
+      align-items: center;
+    }
+
+    /* === TOAST === */
+    .toast {
+      background-color: var(--color-dark);
+      color: var(--color-white);
+      padding: 12px 24px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-family: var(--font-body);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast-success {
+      background-color: #1B5E20;
+    }
+
+    .toast-error {
+      background-color: var(--hc-red);
+    }
+
+    .toast-info {
+      background-color: var(--color-navy);
+    }
+
+    /* === WIZARD === */
+    .wizard-container {
+      max-width: 600px;
+    }
+
+    .wizard-step-indicator {
+      font-size: 14px;
+      color: var(--color-gray);
+      margin-bottom: var(--space-sm);
+    }
+
+    .wizard-progress {
+      margin-bottom: var(--space-lg);
+      display: flex;
+      gap: var(--space-sm);
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--color-border);
+      border-radius: 3px;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--hc-red);
+      transition: width 0.3s;
+    }
+
+    .wizard-question {
+      font-size: 24px;
+      margin-bottom: var(--space-lg);
+    }
+
+    .wizard-options {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .wizard-option {
+      padding: var(--space-md) var(--space-lg);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: border-color 0.2s;
+      background: var(--color-white);
+    }
+
+    .wizard-option:hover {
+      border-color: var(--hc-red);
+    }
+
+    .wizard-option.selected {
+      border-color: var(--hc-red);
+      background-color: #FDEAEC;
+    }
+
+    .wizard-actions {
+      display: flex;
+      gap: var(--space-md);
+      margin-top: var(--space-xl);
+      align-items: center;
+    }
+
+    .wizard-result {
+      padding: var(--space-xl);
+      border-radius: var(--radius-lg);
+      background: var(--color-white);
+      border: 1px solid var(--color-border);
+    }
+
+    .wizard-result h3 {
+      margin-bottom: var(--space-md);
+    }
+
+    /* === ADMIN PANEL === */
+    .admin-section {
+      margin-bottom: var(--space-2xl);
+    }
+
+    .admin-section h3 {
+      margin-bottom: var(--space-lg);
+    }
+
+    .admin-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: var(--space-md);
+    }
+
+    .admin-stat-card {
+      background-color: var(--color-white);
+      border-radius: 16px;
+      border: 1px solid var(--color-border);
+      padding: var(--space-lg);
+      text-align: center;
+    }
+
+    .admin-stat-card .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      font-family: var(--font-heading);
+    }
+
+    .admin-stat-card .stat-text {
+      font-size: 13px;
+      color: var(--color-gray);
+      margin-top: var(--space-xs);
+    }
+
+    /* === RESPONSIVE === */
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: var(--space-sm);
+      color: var(--color-dark);
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: var(--header-height);
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 998;
+    }
+
+    @media (max-width: 1023px) {
+      body {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        top: var(--header-height);
+        left: calc(-1 * var(--sidebar-width));
+        width: var(--sidebar-width);
+        height: calc(100vh - var(--header-height));
+        transition: left 0.3s ease;
+        z-index: 999;
+      }
+
+      .sidebar.open {
+        left: 0;
+      }
+
+      .hamburger {
+        display: block;
+      }
+
+      .sidebar-overlay.open {
+        display: block;
+      }
+
+      .main-content {
+        padding: var(--space-md);
+      }
+
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .search-input {
+        width: 100%;
+      }
+
+      .view-toggle {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <img src="brand-assets/homecredit-logo.png" alt="Home Credit" class="logo">
+    <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu"><i data-lucide="menu"></i></button>
+    <div class="role-toggle">
+      <button data-role="user" class="active">Uživatel</button>
+      <button data-role="admin">Admin</button>
+    </div>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <nav>
+      <a href="#" data-section="dashboard" class="nav-link active">
+        <i data-lucide="layout-dashboard"></i> Přehled
+      </a>
+      <a href="#" data-section="detail" class="nav-link">
+        <i data-lucide="file-text"></i> Detail aplikace
+      </a>
+      <a href="#" data-section="form" class="nav-link">
+        <i data-lucide="plus-circle"></i> Přidat/Upravit
+      </a>
+      <a href="#" data-section="wizard" class="nav-link">
+        <i data-lucide="wand-2"></i> Klasifikační wizard
+      </a>
+      <a href="#" data-section="admin" class="nav-link admin-only">
+        <i data-lucide="shield"></i> Administrace
+      </a>
+    </nav>
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <main class="main-content">
+    <section id="section-dashboard" class="section active"></section>
+    <section id="section-detail" class="section"></section>
+    <section id="section-form" class="section"></section>
+    <section id="section-wizard" class="section"></section>
+    <section id="section-admin" class="section"></section>
+  </main>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script>
+    // === STATE ===
+    const state = {
+      currentSection: 'dashboard',
+      currentRole: 'user',
+      viewMode: 'cards',
+      searchQuery: '',
+      selectedAppId: null,
+      editingAppId: null,
+      wizardStep: 0,
+      wizardAnswers: [],
+      wizardResult: null
+    };
+
+    // === VALID SECTIONS ===
+    const VALID_SECTIONS = ['dashboard', 'detail', 'form', 'wizard', 'admin'];
+
+    // === MOCK DATA ===
+    const mockApps = [
+      {
+        id: 1,
+        name: "Interní Portál HR",
+        owner: "Jana Nováková",
+        deputy: "Petr Svoboda",
+        techAdmin: "Martin Dvořák",
+        classification: "STŘEDNÍ",
+        state: "Produkce",
+        aiModel: null,
+        description: "Portál pro správu zaměstnaneckých dat, docházky a benefitů.",
+        createdAt: "15.03.2022"
+      },
+      {
+        id: 2,
+        name: "Klientský Scoring Engine",
+        owner: "Tomáš Horák",
+        deputy: "Eva Marková",
+        techAdmin: "Lukáš Procházka",
+        classification: "VELKÁ",
+        state: "Produkce",
+        aiModel: "GPT-4o",
+        description: "Engine pro hodnocení kreditního rizika klientů v reálném čase.",
+        createdAt: "08.11.2021"
+      },
+      {
+        id: 3,
+        name: "Datový Sklad BI",
+        owner: "Klára Veselá",
+        deputy: "David Černý",
+        techAdmin: "Barbora Kovářová",
+        classification: "VELKÁ",
+        state: "Ve vývoji",
+        aiModel: null,
+        description: "Centrální datový sklad pro business intelligence a reporting.",
+        createdAt: "22.06.2023"
+      },
+      {
+        id: 4,
+        name: "CRM Dashboard",
+        owner: "Filip Pospíšil",
+        deputy: "Jana Nováková",
+        techAdmin: "Tomáš Horák",
+        classification: "STŘEDNÍ",
+        state: "Testování",
+        aiModel: "Claude 3.5 Sonnet",
+        description: "Dashboard pro správu vztahů se zákazníky a obchodních příležitostí.",
+        createdAt: "03.01.2024"
+      },
+      {
+        id: 5,
+        name: "Fraud Detection System",
+        owner: "Martin Dvořák",
+        deputy: "Lukáš Procházka",
+        techAdmin: "Eva Marková",
+        classification: "VELKÁ",
+        state: "Produkce",
+        aiModel: "GPT-4o",
+        description: "Systém pro detekci podvodných transakcí pomocí strojového učení.",
+        createdAt: "19.09.2021"
+      },
+      {
+        id: 6,
+        name: "Dokumentový Management",
+        owner: "Eva Marková",
+        deputy: "Klára Veselá",
+        techAdmin: "Filip Pospíšil",
+        classification: "MALÁ",
+        state: "Produkce",
+        aiModel: null,
+        description: "Systém pro správu a archivaci interních dokumentů.",
+        createdAt: "27.04.2022"
+      },
+      {
+        id: 7,
+        name: "Platební Brána Admin",
+        owner: "David Černý",
+        deputy: "Barbora Kovářová",
+        techAdmin: "Martin Dvořák",
+        classification: "STŘEDNÍ",
+        state: "Ve vývoji",
+        aiModel: null,
+        description: "Administrační rozhraní pro konfiguraci platební brány.",
+        createdAt: "11.08.2023"
+      },
+      {
+        id: 8,
+        name: "Chatbot Asistent",
+        owner: "Barbora Kovářová",
+        deputy: "Filip Pospíšil",
+        techAdmin: "Klára Veselá",
+        classification: "MALÁ",
+        state: "Návrh",
+        aiModel: "Gemini Pro",
+        description: "Konverzační AI asistent pro zákaznickou podporu.",
+        createdAt: "14.02.2024"
+      },
+      {
+        id: 9,
+        name: "Risk Analytics Platform",
+        owner: "Lukáš Procházka",
+        deputy: "Tomáš Horák",
+        techAdmin: "David Černý",
+        classification: "VELKÁ",
+        state: "Testování",
+        aiModel: "Claude 3.5 Sonnet",
+        description: "Platforma pro analýzu a modelování rizik portfolia.",
+        createdAt: "30.05.2023"
+      },
+      {
+        id: 10,
+        name: "Employee Onboarding",
+        owner: "Petr Svoboda",
+        deputy: "Martin Dvořák",
+        techAdmin: "Jana Nováková",
+        classification: "MALÁ",
+        state: "Vyřazená",
+        aiModel: null,
+        description: "Aplikace pro onboarding nových zaměstnanců, nahrazena novým systémem.",
+        createdAt: "05.12.2021"
+      }
+    ];
+
+    // === STATE & CLASSIFICATION COLOR MAPS ===
+    const STATE_COLORS = {
+      'Návrh': { bg: '#FAF5E0', text: '#282828', border: '#FFDC50' },
+      'Ve vývoji': { bg: '#E8F8FC', text: '#27455C', border: '#2DB1D3' },
+      'Testování': { bg: '#E8F8FC', text: '#27455C', border: '#2DB1D3' },
+      'Produkce': { bg: '#E8F9E8', text: '#1B5E20', border: '#4CAF50' },
+      'Vyřazená': { bg: '#F6F6F6', text: '#656565', border: '#E4E4E4' }
+    };
+
+    const CLASSIFICATION_COLORS = {
+      'MALÁ': { bg: '#E8F8FC', text: '#27455C' },
+      'STŘEDNÍ': { bg: '#FAF5E0', text: '#282828' },
+      'VELKÁ': { bg: '#FDEAEC', text: '#E11931' }
+    };
+
+    // === FILTER FUNCTION ===
+    function filterApps(query) {
+      const normalized = query.toLowerCase().trim();
+      if (!normalized) return mockApps;
+      return mockApps.filter(app => app.name.toLowerCase().includes(normalized));
+    }
+
+    // === PLACEHOLDER RENDER FUNCTIONS ===
+    function renderDashboard() {
+      const apps = filterApps(state.searchQuery);
+
+      // Calculate stats
+      const totalApps = mockApps.length;
+      const countMala = mockApps.filter(a => a.classification === 'MALÁ').length;
+      const countStredni = mockApps.filter(a => a.classification === 'STŘEDNÍ').length;
+      const countVelka = mockApps.filter(a => a.classification === 'VELKÁ').length;
+
+      // Build stats section
+      const statsHtml = `
+        <div class="dashboard-stats">
+          <div class="stat-card">
+            <span class="stat-value">${totalApps}</span>
+            <span class="stat-label">Celkem aplikací</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" style="color: ${CLASSIFICATION_COLORS['MALÁ'].text}">${countMala}</span>
+            <span class="stat-label">Malá</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" style="color: ${CLASSIFICATION_COLORS['STŘEDNÍ'].text}">${countStredni}</span>
+            <span class="stat-label">Střední</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" style="color: ${CLASSIFICATION_COLORS['VELKÁ'].text}">${countVelka}</span>
+            <span class="stat-label">Velká</span>
+          </div>
+        </div>
+      `;
+
+      // Build toolbar
+      const toolbarHtml = `
+        <div class="dashboard-toolbar">
+          <input type="text" class="search-input" placeholder="Hledat aplikaci..." value="${state.searchQuery}" id="dashboard-search" />
+          <div class="view-toggle">
+            <button data-view="cards" class="${state.viewMode === 'cards' ? 'active' : ''}">Karty</button>
+            <button data-view="table" class="${state.viewMode === 'table' ? 'active' : ''}">Tabulka</button>
+          </div>
+        </div>
+      `;
+
+      // Build content based on view mode
+      let contentHtml = '';
+
+      if (apps.length === 0) {
+        contentHtml = `<div class="empty-state"><p>Žádné aplikace neodpovídají vyhledávání.</p></div>`;
+      } else if (state.viewMode === 'cards') {
+        contentHtml = `
+          <div class="cards-grid">
+            ${apps.map(app => `
+              <div class="app-card" onclick="navigateTo('detail', {appId: ${app.id}})">
+                <h4>${app.name}</h4>
+                <p class="card-owner">${app.owner}</p>
+                <div class="card-badges">
+                  <span class="badge" style="background-color: ${CLASSIFICATION_COLORS[app.classification].bg}; color: ${CLASSIFICATION_COLORS[app.classification].text}">${app.classification}</span>
+                  <span class="badge" style="background-color: ${STATE_COLORS[app.state].bg}; color: ${STATE_COLORS[app.state].text}; border: 1px solid ${STATE_COLORS[app.state].border}">${app.state}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        contentHtml = `
+          <table class="app-table">
+            <thead>
+              <tr>
+                <th>Název</th>
+                <th>Vlastník</th>
+                <th>Klasifikace</th>
+                <th>Stav</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${apps.map(app => `
+                <tr onclick="navigateTo('detail', {appId: ${app.id}})">
+                  <td>${app.name}</td>
+                  <td>${app.owner}</td>
+                  <td><span class="badge" style="background-color: ${CLASSIFICATION_COLORS[app.classification].bg}; color: ${CLASSIFICATION_COLORS[app.classification].text}">${app.classification}</span></td>
+                  <td><span class="badge" style="background-color: ${STATE_COLORS[app.state].bg}; color: ${STATE_COLORS[app.state].text}; border: 1px solid ${STATE_COLORS[app.state].border}">${app.state}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+
+      // Assemble full dashboard
+      document.getElementById('section-dashboard').innerHTML = `
+        <h2>Přehled aplikací</h2>
+        ${statsHtml}
+        ${toolbarHtml}
+        ${contentHtml}
+      `;
+
+      // Wire search input
+      const searchInput = document.getElementById('dashboard-search');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          state.searchQuery = e.target.value;
+          renderDashboard();
+        });
+        // Restore focus and cursor position after re-render
+        searchInput.focus();
+        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+      }
+
+      // Wire view toggle buttons
+      document.querySelectorAll('.view-toggle button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.viewMode = btn.dataset.view;
+          renderDashboard();
+        });
+      });
+    }
+
+    function renderDetail(appId) {
+      const container = document.getElementById('section-detail');
+
+      // Find app by ID
+      const app = mockApps.find(a => a.id === appId);
+
+      // If not found, show error and link back
+      if (!app) {
+        container.innerHTML = `
+          <h2>Aplikace nenalezena</h2>
+          <p>Požadovaná aplikace nebyla nalezena v registru.</p>
+          <div class="detail-actions">
+            <button class="btn-secondary" onclick="navigateTo('dashboard')">Zpět na přehled</button>
+          </div>
+        `;
+        return;
+      }
+
+      // Build classification badge
+      const classColors = CLASSIFICATION_COLORS[app.classification];
+      const classBadge = `<span class="badge" style="background-color: ${classColors.bg}; color: ${classColors.text}">${app.classification}</span>`;
+
+      // Build state badge
+      const stateColors = STATE_COLORS[app.state];
+      const stateBadge = `<span class="badge" style="background-color: ${stateColors.bg}; color: ${stateColors.text}; border: 1px solid ${stateColors.border}">${app.state}</span>`;
+
+      // AI model display
+      const aiModelDisplay = app.aiModel ? app.aiModel : 'Nepoužívá AI';
+
+      container.innerHTML = `
+        <h2>${app.name}</h2>
+        <div class="detail-grid">
+          <span class="detail-label">Vlastník</span>
+          <span class="detail-value">${app.owner}</span>
+
+          <span class="detail-label">Zástupce</span>
+          <span class="detail-value">${app.deputy}</span>
+
+          <span class="detail-label">Technický správce</span>
+          <span class="detail-value">${app.techAdmin}</span>
+
+          <span class="detail-label">Klasifikace</span>
+          <span class="detail-value">${classBadge}</span>
+
+          <span class="detail-label">Stav</span>
+          <span class="detail-value">${stateBadge}</span>
+
+          <span class="detail-label">AI model</span>
+          <span class="detail-value">${aiModelDisplay}</span>
+
+          <span class="detail-label">Popis</span>
+          <span class="detail-value">${app.description}</span>
+
+          <span class="detail-label">Datum vytvoření</span>
+          <span class="detail-value">${app.createdAt}</span>
+        </div>
+        <div class="detail-actions">
+          <button class="btn-primary" onclick="navigateTo('form', {appId: ${app.id}})">Upravit</button>
+          <button class="btn-secondary" onclick="navigateTo('dashboard')">Zpět na přehled</button>
+        </div>
+      `;
+    }
+
+    function renderForm(appId) {
+      const app = appId ? mockApps.find(a => a.id === appId) : null;
+      const isEdit = !!app;
+      const heading = isEdit ? 'Upravit aplikaci' : 'Nová aplikace';
+
+      // Check if wizard result should pre-fill classification
+      let wizardClassification = null;
+      if (state.wizardResult) {
+        wizardClassification = state.wizardResult.classification;
+        state.wizardResult = null;
+      }
+
+      const classificationValue = wizardClassification || (isEdit ? app.classification : '');
+      const stateValue = isEdit ? app.state : '';
+
+      const classificationOptions = ['MALÁ', 'STŘEDNÍ', 'VELKÁ'];
+      const stateOptions = ['Návrh', 'Ve vývoji', 'Testování', 'Produkce', 'Vyřazená'];
+
+      document.getElementById('section-form').innerHTML = `
+        <h2>${heading}</h2>
+        <div class="form-container">
+          <div class="form-group">
+            <label for="form-name">Název</label>
+            <input type="text" id="form-name" class="form-input" placeholder="Zadejte název aplikace" value="${isEdit ? app.name : ''}" />
+          </div>
+          <div class="form-group">
+            <label for="form-owner">Vlastník</label>
+            <input type="text" id="form-owner" class="form-input" placeholder="Jméno vlastníka" value="${isEdit ? app.owner : ''}" />
+          </div>
+          <div class="form-group">
+            <label for="form-deputy">Zástupce</label>
+            <input type="text" id="form-deputy" class="form-input" placeholder="Jméno zástupce" value="${isEdit ? app.deputy : ''}" />
+          </div>
+          <div class="form-group">
+            <label for="form-techadmin">Technický správce</label>
+            <input type="text" id="form-techadmin" class="form-input" placeholder="Jméno technického správce" value="${isEdit ? app.techAdmin : ''}" />
+          </div>
+          <div class="form-group">
+            <label for="form-classification">Klasifikace</label>
+            <select id="form-classification" class="form-input">
+              <option value="" disabled ${!classificationValue ? 'selected' : ''}>Vyberte klasifikaci</option>
+              ${classificationOptions.map(opt => `<option value="${opt}" ${classificationValue === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-state">Stav</label>
+            <select id="form-state" class="form-input">
+              <option value="" disabled ${!stateValue ? 'selected' : ''}>Vyberte stav</option>
+              ${stateOptions.map(opt => `<option value="${opt}" ${stateValue === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-aimodel">AI model</label>
+            <input type="text" id="form-aimodel" class="form-input" placeholder="Název AI modelu (pokud je použit)" value="${isEdit && app.aiModel ? app.aiModel : ''}" />
+          </div>
+          <div class="form-group">
+            <label for="form-description">Popis</label>
+            <textarea id="form-description" class="form-input" placeholder="Stručný popis aplikace">${isEdit ? app.description : ''}</textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" onclick="showToast('Aplikace byla uložena.', 'success'); navigateTo('dashboard')">Uložit</button>
+            <button class="btn-secondary" onclick="navigateTo('dashboard')">Zrušit</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // === CLASSIFICATION WIZARD ===
+    const wizardQuestions = [
+      {
+        id: 1,
+        text: "Kolik uživatelů bude aplikaci používat?",
+        options: [
+          { label: "Do 50 uživatelů", score: 1 },
+          { label: "50–500 uživatelů", score: 2 },
+          { label: "Více než 500 uživatelů", score: 3 }
+        ]
+      },
+      {
+        id: 2,
+        text: "Jaká je citlivost zpracovávaných dat?",
+        options: [
+          { label: "Veřejná / interní neklasifikovaná", score: 1 },
+          { label: "Interní důvěrná", score: 2 },
+          { label: "Osobní údaje / finanční data", score: 3 }
+        ]
+      },
+      {
+        id: 3,
+        text: "Jaká je kritičnost aplikace pro business?",
+        options: [
+          { label: "Nízká — podpůrný nástroj", score: 1 },
+          { label: "Střední — důležitá pro tým", score: 2 },
+          { label: "Vysoká — kritická pro provoz", score: 3 }
+        ]
+      },
+      {
+        id: 4,
+        text: "Kolik externích systémů je integrováno?",
+        options: [
+          { label: "Žádný nebo 1", score: 1 },
+          { label: "2–5 systémů", score: 2 },
+          { label: "Více než 5 systémů", score: 3 }
+        ]
+      }
+    ];
+
+    function calculateClassification(answers) {
+      const total = answers.reduce((sum, score) => sum + score, 0);
+      if (total <= 6) {
+        return {
+          classification: 'MALÁ',
+          justification: `Celkové skóre ${total}/12. Aplikace má omezený počet uživatelů, nízkou datovou citlivost a minimální integrační složitost. Klasifikace MALÁ je vhodná.`
+        };
+      } else if (total <= 9) {
+        return {
+          classification: 'STŘEDNÍ',
+          justification: `Celkové skóre ${total}/12. Aplikace vykazuje střední nároky na bezpečnost, dostupnost nebo integraci. Klasifikace STŘEDNÍ odpovídá jejímu profilu.`
+        };
+      } else {
+        return {
+          classification: 'VELKÁ',
+          justification: `Celkové skóre ${total}/12. Aplikace je kritická pro provoz, zpracovává citlivá data a/nebo má rozsáhlou integrační síť. Klasifikace VELKÁ je oprávněná.`
+        };
+      }
+    }
+
+    function renderWizardStep(step) {
+      const container = document.getElementById('section-wizard');
+
+      // Result screen
+      if (step >= wizardQuestions.length) {
+        const result = calculateClassification(state.wizardAnswers);
+        const classColors = CLASSIFICATION_COLORS[result.classification];
+
+        container.innerHTML = `
+          <h2>Klasifikační wizard</h2>
+          <div class="wizard-container">
+            <div class="wizard-result">
+              <h3>Výsledek klasifikace</h3>
+              <p style="margin-bottom: var(--space-md);">
+                Navrhovaná klasifikace: <span class="badge" style="background-color: ${classColors.bg}; color: ${classColors.text}; font-size: 16px; padding: 6px 16px;">${result.classification}</span>
+              </p>
+              <p style="color: var(--color-gray); line-height: 1.5;">${result.justification}</p>
+            </div>
+            <div class="wizard-actions">
+              <button class="btn-primary" onclick="state.wizardResult = {classification: '${result.classification}'}; navigateTo('form')">Aplikovat klasifikaci</button>
+              <button class="btn-secondary" onclick="state.wizardStep = 0; state.wizardAnswers = []; renderWizardStep(0)">Začít znovu</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Question screen
+      const question = wizardQuestions[step];
+      const progressPercent = ((step + 1) / wizardQuestions.length) * 100;
+      const selectedScore = state.wizardAnswers[step] || null;
+
+      container.innerHTML = `
+        <h2>Klasifikační wizard</h2>
+        <div class="wizard-container">
+          <div class="wizard-step-indicator">Krok ${step + 1} / ${wizardQuestions.length}</div>
+          <div class="wizard-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${progressPercent}%"></div>
+            </div>
+          </div>
+          <h3 class="wizard-question">${question.text}</h3>
+          <div class="wizard-options">
+            ${question.options.map(opt => `
+              <div class="wizard-option ${selectedScore === opt.score ? 'selected' : ''}" onclick="selectWizardOption(${step}, ${opt.score})">
+                ${opt.label}
+              </div>
+            `).join('')}
+          </div>
+          <div class="wizard-actions">
+            <button class="btn-primary" onclick="advanceWizard()" ${!selectedScore ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Další</button>
+            ${step > 0 ? `<button class="btn-secondary" onclick="state.wizardStep = ${step - 1}; renderWizardStep(${step - 1})">Zpět</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function selectWizardOption(step, score) {
+      state.wizardAnswers[step] = score;
+      renderWizardStep(step);
+    }
+
+    function advanceWizard() {
+      if (!state.wizardAnswers[state.wizardStep]) return;
+      state.wizardStep++;
+      renderWizardStep(state.wizardStep);
+    }
+
+    function renderAdmin() {
+      const container = document.getElementById('section-admin');
+
+      // Calculate statistics dynamically from mockApps
+      const totalApps = mockApps.length;
+      const countMala = mockApps.filter(a => a.classification === 'MALÁ').length;
+      const countStredni = mockApps.filter(a => a.classification === 'STŘEDNÍ').length;
+      const countVelka = mockApps.filter(a => a.classification === 'VELKÁ').length;
+
+      // Count by state
+      const stateCounts = {};
+      Object.keys(STATE_COLORS).forEach(s => {
+        stateCounts[s] = mockApps.filter(a => a.state === s).length;
+      });
+
+      // Mock users for user management table
+      const mockUsers = [
+        { name: 'Jana Nováková', email: 'jana.novakova@homecredit.cz', role: 'Admin' },
+        { name: 'Petr Svoboda', email: 'petr.svoboda@homecredit.cz', role: 'User' },
+        { name: 'Martin Dvořák', email: 'martin.dvorak@homecredit.cz', role: 'User' },
+        { name: 'Tomáš Horák', email: 'tomas.horak@homecredit.cz', role: 'Admin' },
+        { name: 'Eva Marková', email: 'eva.markova@homecredit.cz', role: 'User' }
+      ];
+
+      // Mock audit log entries
+      const mockAuditLog = [
+        { timestamp: '15.01.2024 09:23', user: 'Jana Nováková', action: 'Vytvořena', app: 'Chatbot Asistent' },
+        { timestamp: '14.01.2024 16:45', user: 'Petr Svoboda', action: 'Upravena klasifikace', app: 'CRM Dashboard' },
+        { timestamp: '13.01.2024 11:02', user: 'Tomáš Horák', action: 'Změněn stav', app: 'Datový Sklad BI' },
+        { timestamp: '12.01.2024 08:15', user: 'Martin Dvořák', action: 'Vytvořena', app: 'Risk Analytics Platform' },
+        { timestamp: '10.01.2024 14:30', user: 'Eva Marková', action: 'Odstraněna', app: 'Employee Onboarding' }
+      ];
+
+      container.innerHTML = `
+        <h2>Administrace</h2>
+
+        <div class="admin-section">
+          <h3>Statistiky</h3>
+          <div class="admin-stats">
+            <div class="admin-stat-card">
+              <div class="stat-number">${totalApps}</div>
+              <div class="stat-text">Celkem aplikací</div>
+            </div>
+            <div class="admin-stat-card">
+              <div class="stat-number" style="color: ${CLASSIFICATION_COLORS['MALÁ'].text}">${countMala}</div>
+              <div class="stat-text">Malá</div>
+            </div>
+            <div class="admin-stat-card">
+              <div class="stat-number" style="color: ${CLASSIFICATION_COLORS['STŘEDNÍ'].text}">${countStredni}</div>
+              <div class="stat-text">Střední</div>
+            </div>
+            <div class="admin-stat-card">
+              <div class="stat-number" style="color: ${CLASSIFICATION_COLORS['VELKÁ'].text}">${countVelka}</div>
+              <div class="stat-text">Velká</div>
+            </div>
+            ${Object.entries(stateCounts).map(([stateName, count]) => `
+              <div class="admin-stat-card">
+                <div class="stat-number" style="color: ${STATE_COLORS[stateName].text}">${count}</div>
+                <div class="stat-text">${stateName}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Správa uživatelů</h3>
+          <table class="app-table">
+            <thead>
+              <tr>
+                <th>Jméno</th>
+                <th>Email</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${mockUsers.map(user => `
+                <tr>
+                  <td>${user.name}</td>
+                  <td>${user.email}</td>
+                  <td>${user.role}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="admin-section">
+          <h3>Audit log</h3>
+          <table class="app-table">
+            <thead>
+              <tr>
+                <th>Datum a čas</th>
+                <th>Uživatel</th>
+                <th>Akce</th>
+                <th>Aplikace</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${mockAuditLog.map(entry => `
+                <tr>
+                  <td>${entry.timestamp}</td>
+                  <td>${entry.user}</td>
+                  <td>${entry.action}</td>
+                  <td>${entry.app}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // === NAVIGATION ===
+    function navigateTo(sectionId, params = {}) {
+      // Guard: unknown section
+      if (!VALID_SECTIONS.includes(sectionId)) {
+        sectionId = 'dashboard';
+      }
+
+      // Guard: role access — admin section requires admin role
+      if (sectionId === 'admin' && state.currentRole !== 'admin') {
+        sectionId = 'dashboard';
+      }
+
+      // Hide all sections
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+      // Show target section
+      document.getElementById(`section-${sectionId}`).classList.add('active');
+
+      // Update sidebar active link
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      const targetLink = document.querySelector(`[data-section="${sectionId}"]`);
+      if (targetLink) {
+        targetLink.classList.add('active');
+      }
+
+      // Update state
+      state.currentSection = sectionId;
+
+      // Render section content
+      switch (sectionId) {
+        case 'dashboard': renderDashboard(); break;
+        case 'detail': renderDetail(params.appId); break;
+        case 'form': renderForm(params.appId || null); break;
+        case 'wizard': renderWizardStep(state.wizardStep); break;
+        case 'admin': renderAdmin(); break;
+      }
+    }
+
+    // === ROLE MANAGEMENT ===
+    function setRole(role) {
+      state.currentRole = role;
+
+      // Update toggle buttons
+      document.querySelectorAll('.role-toggle button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.role === role);
+      });
+
+      // Show/hide admin-only elements
+      document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = role === 'admin' ? '' : 'none';
+      });
+
+      // Redirect if current section is no longer accessible
+      if (state.currentSection === 'admin' && role !== 'admin') {
+        navigateTo('dashboard');
+      }
+    }
+
+    // === SIDEBAR TOGGLE (MOBILE) ===
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      sidebar.classList.toggle('open');
+      if (overlay) overlay.classList.toggle('open');
+    }
+
+    function closeSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      sidebar.classList.remove('open');
+      if (overlay) overlay.classList.remove('open');
+    }
+
+    // === TOAST NOTIFICATIONS ===
+    function showToast(message, type = 'success', duration = 3000) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      // Trigger entrance animation
+      requestAnimationFrame(() => toast.classList.add('visible'));
+
+      // Auto-remove
+      setTimeout(() => {
+        toast.classList.remove('visible');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    // === INITIALIZATION ===
+    function init() {
+      // Wire nav links
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          navigateTo(link.dataset.section);
+          closeSidebar();
+        });
+      });
+
+      // Wire role toggle buttons
+      document.querySelectorAll('.role-toggle button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setRole(btn.dataset.role);
+        });
+      });
+
+      // Initialize Lucide icons
+      lucide.createIcons();
+
+      // Set initial state
+      setRole('user');
+      navigateTo('dashboard');
+    }
+
+    // Start the app
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

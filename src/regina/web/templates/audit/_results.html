@@ -1,0 +1,98 @@
+{% from "components/pagination.html" import pagination_bar %}
+{% from "components/empty_state.html" import empty_state %}
+
+{#
+  Výsledky obrazovky Auditní logy (tabulka + stránkování + prázdný stav).
+  Vyčleněno z `audit/list.html` do partialu, aby ho šlo vykreslit samostatně
+  pro **živé filtrování** (fragment endpoint `GET /audit/fragment`): celá
+  stránka renderuje partial uvnitř kontejneru `#vysledky-audit`, fragment vrací
+  jen tenhle partial a JS jím obsah kontejneru nahradí při změně filtrů — bez
+  tlačítka Filtrovat.
+
+  Nezávisí na `base.html` — je to jen vnitřek kontejneru. Vstupy z kontextu jsou
+  stejné pro stránku i fragment (`entries`, `pagination`, `entity_type_labels`,
+  `application_entity_type`, `request`).
+#}
+
+{% if entries %}
+{# Jeden scrollbar: tabulka nemá vlastní vnitřní posuvník, scrolluje stránka. #}
+<div class="overflow-hidden rounded-lg border border-border-gray bg-white">
+  <div>
+    <table class="w-full border-collapse text-left text-body">
+      <thead class="bg-white">
+        <tr class="border-b border-border-gray text-caption uppercase tracking-wide text-gray-light">
+          <th scope="col" class="px-lg py-md font-bold">Čas</th>
+          <th scope="col" class="px-lg py-md font-bold">Aktér</th>
+          <th scope="col" class="px-lg py-md font-bold">Akce</th>
+          <th scope="col" class="px-lg py-md font-bold">Objekt</th>
+          <th scope="col" class="px-lg py-md font-bold">Popis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for zaznam in entries %}
+        {# Zebra striping: liché řádky mají teplé pozadí. #}
+        <tr class="border-b border-border-gray/60 {% if loop.index0 is odd %}bg-bg-warm{% endif %}">
+          {# Čas přes filtr datum_cas (DD.MM.YYYY HH:MM, R13.3). #}
+          <td class="whitespace-nowrap px-lg py-md text-dark">{{ zaznam.occurred_at | datum_cas }}</td>
+
+          {# Aktér ze snapshotu záznamu (R8.3), ne joinem. Bez aktéra „systém". #}
+          <td class="px-lg py-md">
+            {% if zaznam.actor_display_name or zaznam.actor_email %}
+            <span class="block font-bold text-dark">{{ zaznam.actor_display_name or "—" }}</span>
+            {% if zaznam.actor_email %}
+            <span class="block text-caption text-gray-light">{{ zaznam.actor_email }}</span>
+            {% endif %}
+            {% else %}
+            <span class="text-gray-light">systém</span>
+            {% endif %}
+          </td>
+
+          {# Akce jako český popisek (label(AuditAction)), nikdy strojový kód. #}
+          <td class="px-lg py-md text-dark">{{ label(zaznam.action | audit_action_enum) }}</td>
+
+          {# Objekt: český typ entity + zkrácené id; u aplikace odkaz na detail. #}
+          <td class="px-lg py-md text-dark">
+            {% if zaznam.entity_type %}
+            {% set typ = entity_type_labels.get(zaznam.entity_type, zaznam.entity_type) %}
+            {% if zaznam.entity_type == application_entity_type and zaznam.entity_id %}
+            <a href="/registr/{{ zaznam.entity_id }}" class="font-bold text-navy hover:underline">{{ typ }}</a>
+            {% else %}
+            <span>{{ typ }}</span>
+            {% endif %}
+            {% if zaznam.entity_id %}
+            <span class="block text-caption text-gray-light">{{ zaznam.entity_id.hex[:8] }}</span>
+            {% endif %}
+            {% else %}
+            <span class="text-gray-light">—</span>
+            {% endif %}
+          </td>
+
+          {# Popis: český souhrn; volitelně názvy změněných atributů (bez hodnot, R8.6). #}
+          <td class="px-lg py-md text-dark">
+            <span>{{ zaznam.summary or "—" }}</span>
+            {% if zaznam.changed_fields %}
+            <span class="block text-caption text-gray-light">Změněná pole: {{ zaznam.changed_fields | join(", ") }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Stránkování s textem „Zobrazeno X–Y z N záznamů" (ui.md sekce 9, R8.7).
+     Export CSV (R10.2) je decentně vedle textu rozsahu — sekundární akce dole,
+     ne mezi filtry. Honoruje aktuální filtry přes zkopírovaný query string
+     (R10.3). Audit vidí jen Admin; vynucení exportu má guard `require_export`. #}
+  {{ pagination_bar(
+      pagination,
+      request,
+      export_href=("/export/audit?" ~ request.url.query if request.url.query else "/export/audit")
+  ) }}
+</div>
+{% else %}
+{{ empty_state(
+    nadpis="Žádné auditní záznamy neodpovídají filtrům",
+    popis="Zkuste upravit typ akce, aktéra nebo časový rozsah."
+) }}
+{% endif %}

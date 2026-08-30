@@ -1,0 +1,33 @@
+{#
+  Prázdný stav (ui.md sekce 4 — „Prázdný stav").
+
+  Ikona z vlastní sady (`prazdny-stav`), český vysvětlující text a nepovinná
+  akce. Používá se tam, kde výpis nic nevrátil — např. Moje aplikace, když
+  uživatel není v žádné odpovědné trojici (R3.12).
+
+  Volitelnou akci předá volající jako `caller()` (blok obsahu), takže si
+  obrazovka určí vlastní tlačítko či odkaz:
+
+    {% from "components/empty_state.html" import empty_state %}
+    {% call empty_state(nadpis="Zatím žádné aplikace",
+                        popis="Nejste vedeni jako odpovědná osoba u žádného záznamu.") %}
+      <a href="/registr/nova" class="...">Registrovat novou aplikaci</a>
+    {% endcall %}
+
+  Bez akce stačí zavolat bez těla:
+    {{ empty_state(nadpis="Nic nenalezeno", popis="Zkuste upravit filtry.") }}
+#}
+{% macro empty_state(nadpis, popis="", ikona="prazdny-stav") %}
+<div class="flex flex-col items-center justify-center gap-md rounded-lg border border-dashed border-border-gray bg-white px-lg py-2xl text-center">
+  <svg class="h-12 w-12 text-gray-light" aria-hidden="true">
+    <use href="/static/icons/icons.svg#{{ ikona }}"></use>
+  </svg>
+  <p class="font-heading text-h4 font-bold text-black">{{ nadpis }}</p>
+  {% if popis %}
+  <p class="max-w-md text-body text-gray">{{ popis }}</p>
+  {% endif %}
+  {% if caller %}
+  <div class="mt-sm">{{ caller() }}</div>
+  {% endif %}
+</div>
+{%- endmacro %}

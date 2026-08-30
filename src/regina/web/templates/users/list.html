@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% from "components/badges.html" import role_badge %}
+{% from "components/empty_state.html" import empty_state %}
+
+{#
+  Obrazovka Uživatelé (ui.md sekce 8, R11).
+
+  Tabulkový výpis osob známých aplikaci se sloupci Jméno, E-mail, Pozice, Role,
+  Zdroj role a Akce. Přepnutí role mezi Uživatel a Správce je formulář `POST`
+  na `/uzivatele/{id}/role` s CSRF tokenem (R11.2).
+
+  Vyhrazeno roli Admin — vynucení je na backendu (`require_manage_roles`), tato
+  šablona se roli User nikdy nevykreslí, protože se na cestu `/uzivatele`
+  nedostane (403). Sidebar navíc položku „Uživatelé" roli User skrývá (R2.5).
+
+  Výčtové hodnoty se vykreslují jako české popisky: role přes komponentu
+  `role_badge` (label(Role)), zdroj role přes `label(RoleSource)` — nikdy
+  strojový kód (R13.11).
+
+  Vlastní roli si správce odebrat nemůže (R11.5): u vlastního řádku se přepínač
+  nevykreslí jako aktivní tlačítko, jen se označí „to jste vy". Skutečnou
+  pojistku vynucuje služba na backendu, ne toto skrytí.
+#}
+
+{% block title %}Uživatelé{% endblock %}
+
+{% block content %}
+<section class="space-y-md">
+
+  {# ---------- Poznámka o rozsahu obrazovky (R11.3) ----------
+     Dřív celá sekce; teď decentní jednořádková poznámka malým písmem nahoře —
+     obsah zůstává (spravují se jen role, identity řeší poskytovatel identity),
+     jen nezabírá celý blok. #}
+  <p class="flex items-start gap-sm text-caption text-gray-light">
+    <svg class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true">
+      <use href="/static/icons/icons.svg#uzivatele"></use>
+    </svg>
+    <span>
+      Spravují se pouze aplikační role. Identity se zde nezakládají ani nemažou —
+      jejich životní cyklus je na poskytovateli identity. Sloupec Zdroj role
+      rozlišuje, zda role přišla z poskytovatele identity, nebo byla nastavena
+      lokálně.
+    </span>
+  </p>
+
+  {# ---------- Tabulka / prázdný stav ---------- #}
+  {% if rows %}
+  {# Jeden scrollbar: tabulka nemá vlastní vnitřní posuvník, scrolluje stránka. #}
+  <div class="overflow-hidden rounded-lg border border-border-gray bg-white">
+    <div>
+      <table class="w-full border-collapse text-left text-body">
+        <thead class="bg-white">
+          <tr class="border-b border-border-gray text-caption uppercase tracking-wide text-gray-light">
+            <th scope="col" class="px-lg py-md font-bold">Jméno</th>
+            <th scope="col" class="px-lg py-md font-bold">E-mail</th>
+            <th scope="col" class="px-lg py-md font-bold">Pozice</th>
+            <th scope="col" class="px-lg py-md font-bold">Role</th>
+            <th scope="col" class="px-lg py-md font-bold">Zdroj role</th>
+            <th scope="col" class="px-lg py-md text-right font-bold">Akce</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for radek in rows %}
+          {# Zebra striping: liché řádky mají teplé pozadí. #}
+          <tr class="border-b border-border-gray/60 {% if loop.index0 is odd %}bg-bg-warm{% endif %}">
+            <td class="px-lg py-md">
+              <span class="font-bold text-dark">{{ radek.person.display_name }}</span>
+              {% if radek.is_self %}
+              <span class="ml-xs text-caption text-gray-light">(to jste vy)</span>
+              {% endif %}
+            </td>
+            <td class="px-lg py-md text-dark">{{ radek.person.email }}</td>
+            <td class="px-lg py-md text-dark">{{ radek.person.job_title or "—" }}</td>
+            <td class="px-lg py-md">{{ role_badge(radek.role) }}</td>
+            <td class="px-lg py-md text-dark">{{ label(radek.role_source) }}</td>
+            <td class="px-lg py-md">
+              <div class="flex items-center justify-end gap-xs">
+                {% if radek.is_self %}
+                {# Vlastní roli si správce odebrat nemůže (R11.5). Přepínač je
+                   nedostupný; skutečnou pojistku vynucuje backend. #}
+                <span class="text-caption text-gray-light">Vlastní roli nelze změnit</span>
+                {% else %}
+                <form method="post" action="/uzivatele/{{ radek.person.id }}/role">
+                  <input type="hidden" name="csrf_token" value="{{ get_csrf_token(request) }}">
+                  <input type="hidden" name="role" value="{{ radek.target_role.value }}">
+                  <button
+                    type="submit"
+                    class="flex h-8 items-center gap-xs rounded-md border border-border-gray px-md text-caption text-dark transition-colors hover:bg-bg-warm"
+                    title="Přepnout roli na {{ label(radek.target_role) }}"
+                  >
+                    <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#uzivatele"></use></svg>
+                    <span>Přepnout na {{ label(radek.target_role) }}</span>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  {{ empty_state(
+      nadpis="Adresář neobsahuje žádné osoby",
+      popis="Osoby se do adresáře doplní při prvním přihlášení nebo naplněním syntetickými daty."
+  ) }}
+  {% endif %}
+
+</section>
+{% endblock %}

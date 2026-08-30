@@ -1,0 +1,17 @@
+# Konce řádků drží git napříč platformami, nezávisle na core.autocrlf na
+# stroji, který repo klonuje. Bez tohoto souboru by git s autocrlf=true na
+# Windows převedl LF -> CRLF i u shell skriptů a shebang `#!/bin/sh\r` by
+# v Linux kontejneru selhal na `exec: no such file or directory`.
+
+# Výchozí: necháme git rozhodnout, co je text, a normalizovat na LF v repu.
+* text=auto eol=lf
+
+# Soubory, které MUSÍ zůstat LF i po checkoutu na Windows (běží v Linux image).
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker/entrypoint.sh text eol=lf
+
+# Binární soubory se nikdy nesmí normalizovat.
+*.png binary
+*.woff2 binary
+*.ico binary

@@ -1,0 +1,167 @@
+{% from "components/flash.html" import flash_toast %}
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %} — {{ app_name }}</title>
+  {# Cache-busting: `?v=<otisk CSS>` se změní s obsahem app.css, takže prohlížeč
+     po redeploy nedrží starou verzi CSS z cache (viz templating.asset_version). #}
+  <link rel="stylesheet" href="/static/css/app.css{% if asset_version %}?v={{ asset_version }}{% endif %}">
+</head>
+<body class="min-h-screen bg-bg-light font-body text-dark">
+  {#
+    Základní rozvržení (ui.md sekce 3): tmavý sidebar vlevo, horní lišta a obsah
+    vpravo, patička dole. Navigace se vykresluje z jediného zdroje pravdy
+    (`nav_items`); aktivní položku určuje `active_nav`, ne pevný text na stránce.
+    Responzivita (R13.10): od 1024 px (token `desktop`) je sidebar `fixed` přes
+    celou výšku okna a stále viditelný — scroll obsahu s ním nehýbe, odhlášení
+    dole ani navigace nikam neutíkají. Aby fixní sidebar nepřekrýval obsah, je
+    hlavní sloupec (`.app-main`) odsazený zleva o jeho šířku; odsazení i to, že
+    je sidebar vidět, řídí **jedno** společné `@media (min-width:1024px)` v
+    `input.css`, takže se nemůžou rozejít. Pod 1024 px se sidebar sbalí mimo
+    obrazovku a otevře ho mobilní tlačítko v horní liště přes skrytý přepínač
+    #sidebar-toggle (peer-checkbox, čisté CSS). Kliknutí do ztmaveného pozadí
+    sidebar zavře.
+  #}
+  <input type="checkbox" id="sidebar-toggle" class="peer sr-only">
+
+  <div class="flex min-h-screen">
+
+    {# ---------- Sidebar ----------
+       Dva režimy podle šířky:
+       - Pod 1024 px: `fixed` off-canvas (`-translate-x-full`), otevírá ho
+         přepínač (`peer-checked`), překrývá obsah záměrně jako mobilní menu.
+       - Od 1024 px: `sticky top-0 h-screen` — zůstává v layout flow, takže
+         obsah **nikdy nepřekrývá** (flex ho dá vedle), a přitom je při scrollu
+         přilepený přes celou výšku okna. `sticky` přebije `fixed` (position),
+         proto se nemusí obsah ručně odsazovat.
+       `flex-col` s `nav flex-1 overflow-y-auto` drží odhlášení dole; při mnoha
+       položkách se scrolluje jen uvnitř navigace, ne celý sidebar. #}
+    <aside
+      class="app-sidebar fixed inset-y-0 left-0 z-30 flex w-sidebar -translate-x-full flex-col bg-dark text-white transition-transform duration-200 peer-checked:translate-x-0 desktop:translate-x-0"
+    >
+      {# Logo a podtitul #}
+      <div class="px-lg pt-lg pb-md">
+        <p class="font-heading text-h3 font-bold leading-none text-white">{{ app_name }}</p>
+        <p class="mt-xs text-caption text-white/60">{{ app_subtitle }}</p>
+      </div>
+
+      {# Navigace z jediného zdroje pravdy (web/nav.py). Aktivní položka
+         zvýrazněná žlutým levým okrajem a tučně. #}
+      <nav class="mt-md flex-1 overflow-y-auto px-sm" aria-label="Hlavní navigace">
+        <ul class="space-y-xs">
+          {% for item in nav_items %}
+          {% set is_active = item.key == active_nav %}
+          <li>
+            <a
+              href="{{ item.href }}"
+              class="flex items-center gap-md rounded-md border-l-4 px-md py-sm text-body transition-colors
+                {% if is_active %}border-hc-yellow bg-white/10 font-bold text-white{% else %}border-transparent text-white/70 hover:bg-white/5 hover:text-white{% endif %}"
+              {% if is_active %}aria-current="page"{% endif %}
+            >
+              <svg class="h-5 w-5 shrink-0" aria-hidden="true">
+                <use href="/static/icons/icons.svg#{{ item.icon }}"></use>
+              </svg>
+              <span>{{ item.label }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+
+        {# Primární akce „Nová aplikace" (žlutý pill button). Užší (80 %) a
+           vycentrovaný, aby přes celou šířku sidebaru nepůsobil těžkopádně;
+           `whitespace-nowrap` drží popisek na jednom řádku. #}
+        <a
+          href="{{ primary_action.href }}"
+          class="mx-auto mt-lg flex w-[80%] items-center justify-center gap-sm whitespace-nowrap rounded-pill bg-hc-yellow px-md py-sm font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+        >
+          <svg class="h-5 w-5 shrink-0" aria-hidden="true">
+            <use href="/static/icons/icons.svg#{{ primary_action.icon }}"></use>
+          </svg>
+          <span>{{ primary_action.label }}</span>
+        </a>
+      </nav>
+
+      {# Blok přihlášené osoby: iniciály, jméno, e-mail a odhlášení. #}
+      {% if user %}
+      <div class="border-t border-white/10 px-md py-md">
+        <div class="flex items-center gap-md">
+          <span
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-hc-red font-heading font-bold text-white"
+            aria-hidden="true"
+          >{{ initials(user.name) }}</span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-body font-bold text-white">{{ user.name }}</span>
+            <span class="block truncate text-caption text-white/60">{{ user.email }}</span>
+          </span>
+        </div>
+        <form method="post" action="/odhlaseni" class="mt-sm">
+          <input type="hidden" name="csrf_token" value="{{ get_csrf_token(request) }}">
+          <button
+            type="submit"
+            class="flex w-full items-center justify-center gap-sm rounded-md px-md py-sm text-body text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            <svg class="h-5 w-5 shrink-0" aria-hidden="true">
+              <use href="/static/icons/icons.svg#odhlasit"></use>
+            </svg>
+            <span>Odhlásit se</span>
+          </button>
+        </form>
+      </div>
+      {% endif %}
+    </aside>
+
+    {# Zatmavení pozadí pod sidebarem na mobilu (klik zavře). #}
+    <label
+      for="sidebar-toggle"
+      class="fixed inset-0 z-20 hidden bg-black/50 peer-checked:block desktop:!hidden"
+      aria-hidden="true"
+    ></label>
+
+    {# ---------- Hlavní sloupec ----------
+       Odsazení zleva o šířku sidebaru řeší explicitní CSS pravidlo (input.css,
+       třída `.app-main`) uvnitř `@media (min-width:1024px)` — stejná mez, na
+       které se sidebar v `.app-sidebar` přilepí. Tím jsou viditelnost sidebaru
+       a odsazení obsahu vázané na jedno místo a nemůžou se rozejít. #}
+    <div class="app-main flex min-w-0 flex-1 flex-col">
+
+      {# Horní lišta: název sekce vlevo, hledání vpravo, mobilní menu. #}
+      <header class="sticky top-0 z-10 flex items-center gap-md border-b border-border-gray bg-white px-lg py-md">
+        <label
+          for="sidebar-toggle"
+          class="cursor-pointer text-dark desktop:hidden"
+          aria-label="Otevřít navigaci"
+        >
+          <svg class="h-6 w-6" aria-hidden="true">
+            <use href="/static/icons/icons.svg#menu"></use>
+          </svg>
+        </label>
+
+        <h1 class="min-w-0 flex-1 truncate font-heading text-h4 font-bold text-black">
+          {% block section_title %}{{ section_title }}{% endblock %}
+        </h1>
+        {# Globální vyhledávání v horní liště bylo odstraněno — hledání má každá
+           obrazovka vlastní v obsahu (Registr, Moje aplikace), takže duplicitní
+           pole nahoře nemělo přínos. #}
+      </header>
+
+      {# ---------- Obsah stránky ---------- #}
+      <main class="flex-1 px-lg py-lg">
+        {{ flash_toast(flash, request) }}
+        {% block page_actions %}{% endblock %}
+        {% block content %}{% endblock %}
+      </main>
+
+      {# ---------- Patička ---------- #}
+      <footer class="border-t border-border-gray bg-white px-lg py-md text-caption text-gray-light">
+        <p>© Home Credit International</p>
+      </footer>
+    </div>
+  </div>
+
+  {# Skripty na konci těla. Většina obrazovek žádné nemá; ty, které ano
+     (např. živé hledání), je vloží přes tento blok. #}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

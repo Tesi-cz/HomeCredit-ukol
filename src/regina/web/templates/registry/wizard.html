@@ -1,0 +1,429 @@
+{#
+  Průvodce registrací a editací aplikace (ui.md sekce 6, R5.3/5.5/5.6/5.10/5.12).
+
+  Samostatné rozvržení BEZ sidebaru (ui.md sekce 6: „bez sidebaru"). Nedědí
+  z `base.html`, protože ten sidebar i horní lištu s navigací vždy vykresluje.
+  Průvodce má místo toho vlastní hlavičku s logem, ukazatel průběhu se třemi
+  kroky (Základní údaje / Odpovědnost / Provoz a klasifikace) a patičku s akcemi.
+
+  **Jedna šablona pro vznik i editaci (úkol 14.3 + 14.4).** ui.md sekce 6 vede
+  obě cesty (`/registr/nova` i `/registr/{id}/upravit`) přes tentýž formulář.
+  Šablona je proto parametrizovaná kontextem, aby ji obě routy sdílely bez
+  duplikace:
+
+  - `wizard_title` — nadpis stránky („Průvodce registrací aplikace" vs
+    „Upravit aplikaci"),
+  - `wizard_intro` — podnadpis pod ním,
+  - `submit_label` — text tlačítka odeslání („Registrovat aplikaci" vs
+    „Uložit změny"),
+  - `back_label` — text odkazu zpět v hlavičce,
+  - `form_action` — cíl POST (routa vzniku nebo editace daného záznamu),
+  - `cancel_href` — kam vede Zrušit / Zpět (Moje aplikace vs detail záznamu),
+  - `values` — předvyplněné hodnoty (výchozí vlastník u vzniku, aktuální
+    hodnoty záznamu u editace).
+
+  Struktura kroků, výčty i selecty osob jsou pro obě cesty totožné — mění se
+  jen texty a předvyplnění, ne logika ani zdroje dat.
+
+  **Jeden formulář, jedno odeslání.** Kroky jsou vizuální sekce jedné stránky;
+  záznam vzniká jediným odesláním na konci (ui.md sekce 6). Validace je vždy na
+  serveru nad celou sadou polí — proto průvodce nevyžaduje JavaScript ke
+  správnosti. Ukazatel průběhu ukazuje strukturu ze tří kroků z mocku.
+
+  **Osoby z adresáře, ne psaním jména (R2.6, R5.5).** Vlastník, zástupce a
+  technický správce jsou `<select>` plněné z adresáře (`people`): hodnota volby
+  je `id` osoby, popisek její jméno. Autorizace stojí na identitě, ne na jménu.
+
+  **Výčty z jednoho zdroje.** Stav a klasifikace se vykreslují z `lifecycle_states`
+  a `classifications` (z `domain.enums`) s českými popisky přes `label(...)`
+  a `classification_label(...)` — nikdy strojový kód (R13.11). Útvary z
+  `departments` (konfigurace). Stav `Vyřazená` v nabídce není (R5.12).
+
+  **Chyby u konkrétních polí (R5.3).** `errors` je mapa `{pole: [hlášky]}` z
+  validace (web/forms.py). Makro `field_errors` vykreslí hlášky pod příslušným
+  polem, ne jako jednu souhrnnou hlášku. Zadané hodnoty se zachovají přes
+  `values` (předvyplnění při re-renderu i výchozí vlastník).
+
+  Statické zdroje (CSS, fonty, ikony) se servírují z aplikace — žádné CDN (R13.9).
+#}
+{% macro field_errors(field) %}
+  {% if errors.get(field) %}
+  <ul class="mt-xs space-y-xs" role="alert">
+    {% for message in errors[field] %}
+    <li class="flex items-center gap-xs text-caption text-hc-red">
+      <svg class="h-4 w-4 shrink-0" aria-hidden="true"><use href="/static/icons/icons.svg#varovani"></use></svg>
+      <span>{{ message }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+{% endmacro %}
+
+{% macro input_classes(field) %}w-full rounded-md border bg-white py-sm px-md text-body text-dark {% if errors.get(field) %}border-hc-red{% else %}border-border-input{% endif %}{% endmacro %}
+
+{% macro person_select(field, id, popisek, people, values, errors, required=False) %}
+<div>
+  <label for="{{ id }}" class="mb-xs block text-caption font-bold text-dark">
+    {{ popisek }}{% if required %} <span class="text-hc-red" title="Povinné pole">*</span>{% endif %}
+  </label>
+  <select id="{{ id }}" name="{{ field }}" class="{{ input_classes(field) }}"{% if required %} required{% endif %}>
+    <option value="">— vyberte osobu z adresáře —</option>
+    {% for person in people %}
+    <option value="{{ person.id }}" {% if values.get(field) == person.id %}selected{% endif %}>{{ person.label }}</option>
+    {% endfor %}
+  </select>
+  {{ field_errors(field) }}
+</div>
+{% endmacro %}
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ wizard_title }} — {{ app_name }}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="flex min-h-screen flex-col bg-bg-light font-body text-dark">
+
+  {# ---------- Hlavička průvodce (bez sidebaru) ---------- #}
+  <header class="border-b border-border-gray bg-white px-lg py-md">
+    <div class="mx-auto flex max-w-4xl items-center justify-between gap-md">
+      <div class="min-w-0">
+        <p class="font-heading text-h4 font-bold leading-none text-black">{{ app_name }}</p>
+        <p class="mt-xs text-caption text-gray-light">{{ app_subtitle }}</p>
+      </div>
+      <a
+        href="{{ cancel_href }}"
+        class="flex shrink-0 items-center gap-xs text-caption font-bold text-navy hover:underline"
+      >
+        <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#zpet"></use></svg>
+        <span>{{ back_label }}</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="flex-1 px-lg py-lg">
+    <div class="mx-auto max-w-4xl space-y-lg">
+
+      <div>
+        <h1 class="font-heading text-h3 font-bold text-black">{{ wizard_title }}</h1>
+        <p class="mt-xs text-body text-gray">{{ wizard_intro }}</p>
+      </div>
+
+      {# ---------- Ukazatel průběhu: tři kroky (ui.md sekce 6, mock) ---------- #}
+      {% set steps = [
+        {"num": 1, "label": "Základní údaje"},
+        {"num": 2, "label": "Odpovědnost"},
+        {"num": 3, "label": "Provoz a klasifikace"},
+      ] %}
+      <ol class="flex items-center gap-sm" aria-label="Postup registrace">
+        {% for step in steps %}
+        <li class="flex flex-1 items-center gap-sm" data-step-indicator="{{ step.num }}">
+          <span
+            data-step-dot
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-heading text-caption font-bold
+              {% if loop.first %}bg-hc-yellow text-black{% else %}bg-border-gray text-dark{% endif %}"
+          >{{ step.num }}</span>
+          <span class="hidden text-caption font-bold text-dark desktop:inline">{{ step.label }}</span>
+          {% if not loop.last %}
+          <span class="h-px flex-1 bg-border-gray" aria-hidden="true"></span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+
+      {# Souhrnné upozornění, pokud validace vrátila chyby (odkazuje k polím). #}
+      {% if errors %}
+      <div class="flex items-start gap-md rounded-md border border-hc-red/40 bg-hc-red/10 px-md py-sm text-hc-red" role="alert">
+        <svg class="mt-xs h-5 w-5 shrink-0" aria-hidden="true"><use href="/static/icons/icons.svg#varovani"></use></svg>
+        <p class="flex-1 text-body">Formulář obsahuje chyby. Zkontrolujte označená pole níže.</p>
+      </div>
+      {% endif %}
+
+      {# `data-wizard-steps` aktivuje krokový režim (JS `wizard-steps.js`):
+         zobrazí se jedna sekce, mezi kroky se přechází Další/Zpět, odeslat jde
+         až na posledním kroku. Bez JS se ukážou všechny sekce najednou a
+         formulář se odešle jedním tlačítkem — plně funkční i bez skriptu. #}
+      <form method="post" action="{{ form_action }}" class="space-y-lg" data-wizard-steps>
+        <input type="hidden" name="csrf_token" value="{{ get_csrf_token(request) }}">
+
+        {# ========== Krok 1 — Základní údaje ========== #}
+        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-1" data-step="1">
+          <div class="mb-md flex items-center gap-sm">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-hc-yellow font-heading text-caption font-bold text-black">1</span>
+            <h2 id="krok-1" class="font-heading text-h4 font-bold text-black">Základní údaje</h2>
+          </div>
+
+          <div class="space-y-md">
+            {# Název — povinný (R5.3). #}
+            <div>
+              <label for="pole-nazev" class="mb-xs block text-caption font-bold text-dark">
+                Název aplikace <span class="text-hc-red" title="Povinné pole">*</span>
+              </label>
+              <input
+                type="text"
+                id="pole-nazev"
+                name="{{ fields.FIELD_NAME }}"
+                value="{{ values.get(fields.FIELD_NAME, '') }}"
+                class="{{ input_classes(fields.FIELD_NAME) }}"
+                required
+              >
+              {{ field_errors(fields.FIELD_NAME) }}
+            </div>
+
+            {# Popis — nepovinný. Vedle popisku tlačítko AI úpravy (R4.1):
+               přepíše zadaný text do kultivovanějšího znění. Bez JS zůstává
+               popis běžné textové pole. #}
+            <div data-rewrite="/registr/uprava-popisu">
+              <div class="mb-xs flex items-center justify-between gap-sm">
+                <label for="pole-popis" class="block text-caption font-bold text-dark">Popis</label>
+                <button
+                  type="button"
+                  class="hidden items-center gap-xs rounded-md border border-border-gray px-sm py-1 text-caption text-navy transition-colors hover:bg-bg-warm"
+                  data-rewrite-trigger
+                >
+                  <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#ai"></use></svg>
+                  <span>AI úprava</span>
+                </button>
+              </div>
+              <textarea
+                id="pole-popis"
+                name="{{ fields.FIELD_DESCRIPTION }}"
+                rows="3"
+                class="{{ input_classes(fields.FIELD_DESCRIPTION) }}"
+                data-rewrite-input
+              >{{ values.get(fields.FIELD_DESCRIPTION, '') }}</textarea>
+              {{ field_errors(fields.FIELD_DESCRIPTION) }}
+              {# Sem JS vloží návrh přepisu (fragment `_rewrite_result.html`). #}
+              <div class="mt-sm" data-rewrite-result aria-live="polite"></div>
+            </div>
+
+            {# Útvar — povinný, z konfigurace (jeden zdroj). #}
+            <div>
+              <label for="pole-utvar" class="mb-xs block text-caption font-bold text-dark">
+                Útvar <span class="text-hc-red" title="Povinné pole">*</span>
+              </label>
+              <select
+                id="pole-utvar"
+                name="{{ fields.FIELD_DEPARTMENT }}"
+                class="{{ input_classes(fields.FIELD_DEPARTMENT) }}"
+                required
+              >
+                <option value="">— vyberte útvar —</option>
+                {% for utvar in departments %}
+                <option value="{{ utvar }}" {% if values.get(fields.FIELD_DEPARTMENT) == utvar %}selected{% endif %}>{{ utvar }}</option>
+                {% endfor %}
+              </select>
+              {{ field_errors(fields.FIELD_DEPARTMENT) }}
+            </div>
+          </div>
+        </section>
+
+        {# ========== Krok 2 — Odpovědnost ========== #}
+        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-2" data-step="2">
+          <div class="mb-md flex items-center gap-sm">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-border-gray font-heading text-caption font-bold text-dark">2</span>
+            <h2 id="krok-2" class="font-heading text-h4 font-bold text-black">Odpovědnost</h2>
+          </div>
+          <p class="mb-md text-caption text-gray-light">Osoby se vybírají z adresáře. Vlastník je předvyplněn vámi, lze ho změnit.</p>
+
+          <div class="space-y-md">
+            {{ person_select(fields.FIELD_OWNER, "pole-vlastnik", "Vlastník", people, values, errors, required=True) }}
+            {{ person_select(fields.FIELD_DEPUTY, "pole-zastupce", "Zástupce", people, values, errors, required=False) }}
+            {{ person_select(fields.FIELD_TECH_ADMIN, "pole-spravce", "Technický správce", people, values, errors, required=True) }}
+          </div>
+        </section>
+
+        {# ========== Krok 3 — Provoz a klasifikace ========== #}
+        {# Pravý sloupec zůstává prázdný jako vyhrazené místo pro budoucí AI panel
+           (ui.md sekce 6). Rozvržení kroku se přidáním našeptávače nezmění. #}
+        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-3" data-step="3">
+          <div class="mb-md flex items-center gap-sm">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-border-gray font-heading text-caption font-bold text-dark">3</span>
+            <h2 id="krok-3" class="font-heading text-h4 font-bold text-black">Provoz a klasifikace</h2>
+          </div>
+
+          <div class="grid grid-cols-1 gap-lg desktop:grid-cols-2">
+            <div class="space-y-md">
+              {# Stav — povinný, z jednoho zdroje výčtu; bez „Vyřazená" (R5.12). #}
+              <div>
+                <label for="pole-stav" class="mb-xs block text-caption font-bold text-dark">
+                  Stav <span class="text-hc-red" title="Povinné pole">*</span>
+                </label>
+                <select
+                  id="pole-stav"
+                  name="{{ fields.FIELD_LIFECYCLE_STATE }}"
+                  class="{{ input_classes(fields.FIELD_LIFECYCLE_STATE) }}"
+                  required
+                >
+                  <option value="">— vyberte stav —</option>
+                  {% for stav in lifecycle_states %}
+                  <option value="{{ stav.value }}" {% if values.get(fields.FIELD_LIFECYCLE_STATE) == stav.value %}selected{% endif %}>{{ label(stav) }}</option>
+                  {% endfor %}
+                </select>
+                {{ field_errors(fields.FIELD_LIFECYCLE_STATE) }}
+              </div>
+
+              {# AI model — nepovinný. #}
+              <div>
+                <label for="pole-ai-model" class="mb-xs block text-caption font-bold text-dark">AI model</label>
+                <input
+                  type="text"
+                  id="pole-ai-model"
+                  name="{{ fields.FIELD_AI_MODEL }}"
+                  value="{{ values.get(fields.FIELD_AI_MODEL, '') }}"
+                  placeholder="Např. GPT-4o, žádný"
+                  class="{{ input_classes(fields.FIELD_AI_MODEL) }}"
+                >
+                {{ field_errors(fields.FIELD_AI_MODEL) }}
+              </div>
+
+              {# Klasifikace — NEPOVINNÁ (R5.7): prázdná volba = Neklasifikováno. #}
+              <div>
+                <label for="pole-klasifikace" class="mb-xs block text-caption font-bold text-dark">Klasifikace</label>
+                <select
+                  id="pole-klasifikace"
+                  name="{{ fields.FIELD_CLASSIFICATION }}"
+                  class="{{ input_classes(fields.FIELD_CLASSIFICATION) }}"
+                  data-classification-select
+                >
+                  <option value="" {% if not values.get(fields.FIELD_CLASSIFICATION) %}selected{% endif %}>{{ NO_CLASSIFICATION_LABEL }}</option>
+                  {% for klasifikace in classifications %}
+                  <option value="{{ klasifikace.value }}" {% if values.get(fields.FIELD_CLASSIFICATION) == klasifikace.value %}selected{% endif %}>{{ label(klasifikace) }}</option>
+                  {% endfor %}
+                </select>
+                {{ field_errors(fields.FIELD_CLASSIFICATION) }}
+                {# Skrytá pole pro zápis se zdrojem AI. JS je vyplní při převzetí
+                   návrhu; prázdná = zápis proběhne jako HUMAN (ruční volba).
+                   Zápis a autorizaci řeší až uložení formuláře na backendu. #}
+                <input type="hidden" name="advisor_suggestion_id" value="" data-advisor-suggestion-id>
+                <input type="hidden" name="advisor_suggested" value="" data-advisor-suggested>
+              </div>
+            </div>
+
+            {# AI poradce klasifikace (classification-advisor R2, R3). Dotazník
+               šesti dimenzí; tlačítko pošle odpovědi na `/registr/poradce`,
+               vrácený fragment nahradí panel doporučení. Bez JS je to jen
+               statická nápověda — klasifikaci lze zvolit ručně vlevo. #}
+            <aside
+              class="rounded-md border border-border-gray bg-bg-warm p-lg"
+              data-advisor="/registr/poradce"
+            >
+              <div class="mb-sm flex items-center gap-sm">
+                <svg class="h-5 w-5 text-navy" aria-hidden="true"><use href="/static/icons/icons.svg#ai"></use></svg>
+                <p class="text-caption font-bold text-dark">Poradce klasifikace</p>
+              </div>
+              <p class="mb-md text-caption text-gray-light">Odpovězte na šest otázek a nechte si navrhnout klasifikaci se zdůvodněním.</p>
+
+              {# Dotazník. JS ho po vygenerování doporučení schová (`data-advisor-form`)
+                 a na jeho místo vloží výsledek do `data-advisor-result`; výška
+                 panelu tak zůstane konstantní. Bez JS zůstává dotazník viditelný. #}
+              <div data-advisor-form>
+                {# Otázky vždy ve dvou sloupcích (2×3), ať panel nepřeteče. #}
+                <div class="grid grid-cols-2 gap-sm">
+                  {% for otazka in advisor_questions %}
+                  <div>
+                    <label for="dim-{{ otazka.dimension }}" class="mb-xs block text-caption font-bold text-dark">{{ otazka.title }}</label>
+                    <select
+                      id="dim-{{ otazka.dimension }}"
+                      name="dim_{{ otazka.dimension }}"
+                      class="h-9 w-full rounded-md border border-border-input bg-white px-sm text-caption text-dark"
+                      data-advisor-answer
+                    >
+                      <option value="">— vyberte —</option>
+                      {% for odpoved in otazka.answers %}
+                      <option value="{{ odpoved.code }}">{{ odpoved.label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% endfor %}
+                </div>
+
+                <div class="mt-sm">
+                  <label for="poradce-poznamka" class="mb-xs block text-caption font-bold text-dark">Poznámka (nepovinné)</label>
+                  <input
+                    type="text"
+                    id="poradce-poznamka"
+                    name="poradce_poznamka"
+                    placeholder="Krátce doplňte kontext aplikace."
+                    class="h-9 w-full rounded-md border border-border-input bg-white px-sm text-caption text-dark"
+                    data-advisor-note
+                  >
+                </div>
+
+                <button
+                  type="button"
+                  class="mt-md hidden h-9 w-full items-center justify-center gap-sm rounded-md bg-hc-yellow px-md font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+                  data-advisor-trigger
+                >
+                  <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#ai"></use></svg>
+                  <span>Navrhnout klasifikaci</span>
+                </button>
+              </div>
+
+              {# Sem JS vloží panel doporučení (fragment `_advisor_panel.html`).
+                 Zobrazí se místo dotazníku (ten se schová), takže výška drží. #}
+              <div data-advisor-result aria-live="polite"></div>
+            </aside>
+          </div>
+        </section>
+
+        {# ---------- Patička s akcemi ----------
+           Bez JS: vidíš jen Zrušit + odeslat (Zpět/Další jsou `hidden`).
+           S JS (`wizard-steps.js`): Zpět a Další se zobrazí a řídí kroky;
+           odesílací tlačítko se ukáže až na posledním kroku. #}
+        <div class="flex items-center justify-between gap-sm">
+          <a
+            href="{{ cancel_href }}"
+            class="flex h-10 items-center rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+          >Zrušit</a>
+
+          <div class="flex items-center gap-sm">
+            {# Zpět — o krok zpět. Skryté bez JS i na prvním kroku. #}
+            <button
+              type="button"
+              class="hidden h-10 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+              data-wizard-prev
+            >
+              <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#zpet"></use></svg>
+              <span>Zpět</span>
+            </button>
+
+            {# Další — na další krok. Skryté bez JS i na posledním kroku. #}
+            <button
+              type="button"
+              class="hidden h-10 items-center gap-sm rounded-pill bg-hc-yellow px-lg font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+              data-wizard-next
+            >
+              <span>Další</span>
+              <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+            </button>
+
+            {# Odeslat — bez JS vždy viditelné; s JS jen na posledním kroku. #}
+            <button
+              type="submit"
+              class="flex h-10 items-center gap-sm rounded-pill bg-hc-yellow px-lg font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+              data-wizard-submit
+            >
+              <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#hotovo"></use></svg>
+              <span>{{ submit_label }}</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer class="border-t border-border-gray bg-white px-lg py-md text-center text-caption text-gray-light">
+    <p>© Home Credit International</p>
+  </footer>
+
+  {# Krokový režim průvodce (jedna sekce na obrazovku, Další/Zpět). Progresivní
+     vylepšení — bez JS se zobrazí všechny sekce najednou. #}
+  <script src="/static/js/wizard-steps.js" defer></script>
+
+  {# AI funkce formuláře (poradce klasifikace, úprava popisu). Wizard nedědí
+     z base.html, proto se skript přidává přímo sem (classification-advisor). #}
+  <script src="/static/js/advisor.js" defer></script>
+</body>
+</html>

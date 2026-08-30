@@ -1,0 +1,53 @@
+{#
+  Badge komponenty (ui.md sekce 4, 5, 8; R3.8, R13.8, R13.11).
+
+  Tři druhy badge: stav životního cyklu, klasifikace (včetně „Neklasifikováno")
+  a role. Popisek se *vždy* bere z labels.py přes globály `label(...)` a
+  `classification_label(...)` — do rozhraní nikdy neuniká strojový kód ani
+  anglický text (R13.11). Barevnou variantu určuje `*_variant(...)` z
+  templating.py; konkrétní Tailwind třídy variant drží tato šablona, aby je
+  Tailwind při buildu viděl ve statickém HTML a nevyřadil.
+
+  Použití:
+    from "components/badges.html" import state_badge, classification_badge, role_badge
+    state_badge(zaznam.lifecycle_state)
+    classification_badge(zaznam.classification)   -> None dá „Neklasifikováno"
+    role_badge(uzivatel.role)
+#}
+
+{# Základ vzhledu sdílený všemi badge (pilulka, drobné písmo, zarovnání). #}
+{% macro _badge_base() %}inline-flex items-center gap-xs rounded-pill px-md py-xs text-caption font-bold leading-none{% endmacro %}
+
+{# ---- Badge stavu (Lifecycle_State) ---------------------------------- #}
+{% macro state_badge(state) %}
+  {% set variant = lifecycle_state_variant(state) %}
+  {% set styles = {
+    "live": "bg-teal/15 text-navy",
+    "progress": "bg-blue/10 text-blue",
+    "neutral": "bg-border-gray text-dark",
+    "muted": "bg-bg-warm text-gray-light",
+  } %}
+  <span class="{{ _badge_base() }} {{ styles[variant] }}">{{ label(state) }}</span>
+{%- endmacro %}
+
+{# ---- Badge klasifikace (včetně varianty „Neklasifikováno", R3.8) ----- #}
+{% macro classification_badge(classification) %}
+  {% set variant = classification_variant(classification) %}
+  {% set styles = {
+    "small": "bg-bg-warm text-dark border border-border-gray",
+    "medium": "bg-warm-bg text-navy border border-hc-yellow",
+    "large": "bg-hc-red/10 text-hc-red border border-hc-red/30",
+    "none": "bg-transparent text-gray-light border border-dashed border-border-input",
+  } %}
+  <span class="{{ _badge_base() }} {{ styles[variant] }}">{{ classification_label(classification) }}</span>
+{%- endmacro %}
+
+{# ---- Badge role (Uživatel / Správce) -------------------------------- #}
+{% macro role_badge(role) %}
+  {% set variant = role_variant(role) %}
+  {% set styles = {
+    "admin": "bg-navy text-white",
+    "neutral": "bg-border-gray text-dark",
+  } %}
+  <span class="{{ _badge_base() }} {{ styles[variant] }}">{{ label(role) }}</span>
+{%- endmacro %}
