@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from urllib.parse import urlencode
 
 from fastapi import Request
+from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse
 
 # Názvy query parametrů nesoucích zprávu a její typ. Drženy tady, aby je
@@ -84,3 +85,39 @@ def redirect_with_flash(
     separator = "&" if "?" in location else "?"
     query = urlencode({FLASH_MESSAGE_PARAM: message, FLASH_TYPE_PARAM: flash_type})
     return RedirectResponse(f"{location}{separator}{query}", status_code=status_code)
+
+
+def redirect_after_write(
+    session: Session,
+    location: str,
+    message: str,
+    *,
+    type: str = "success",
+    status_code: int = 303,
+) -> RedirectResponse:
+    """Commitne transakci **a teprve pak** vrátí přesměrování s hlášením.
+
+    **Proč commit tady, ne až v úklidu závislosti.** Transakci požadavku sice
+    commituje ``get_session`` (přes ``session_scope``), jenže ten commit běží až
+    *po* odeslání odpovědi klientovi. U Post/Redirect/Get to vytváří race:
+    prohlížeč dostane ``303`` a okamžitě — často po jiném keep-alive spojení —
+    vystřelí následný ``GET`` cíle. Ten otevře **novou** session a přečte
+    ``applications.classification`` (a další) dřív, než se commit původního
+    ``POST`` stihne zapsat. Výsledek: cílová obrazovka ukáže *předchozí* hodnotu
+    (klasifikace, stav, role…), dokud uživatel nedá F5 — přesně příznak z chyby.
+
+    Řešení je zapsat transakci **synchronně v obsluze**, ještě než odejde
+    přesměrování. Mutační routy proto po zápisu volají tuto funkci místo
+    ``redirect_with_flash``: nejdřív ``session.commit()``, pak se sestaví
+    ``RedirectResponse``. Následný ``GET`` už tak vždy vidí commitnutá data.
+    Úklidový commit v ``get_session`` pak nad prázdnou transakcí neudělá nic
+    (no-op), takže se nic nezapíše dvakrát.
+
+    Podpis je jinak shodný s ``redirect_with_flash`` — jen navíc přebírá
+    ``session`` k commitu. Používá se všude, kde po úspěšné **změně dat**
+    následuje přesměrování (vznik, editace, klasifikace, vyřazení, role).
+    """
+    session.commit()
+    return redirect_with_flash(
+        location, message, type=type, status_code=status_code
+    )

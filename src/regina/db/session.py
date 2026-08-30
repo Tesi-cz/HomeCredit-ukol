@@ -79,7 +79,17 @@ def session_scope() -> Iterator[Session]:
 
 
 def get_session() -> Iterator[Session]:
-    """FastAPI závislost. Jedna transakce na požadavek."""
+    """FastAPI závislost. Jedna transakce na požadavek.
+
+    Commit/rollback řeší ``session_scope`` v úklidu závislosti. **Pozor:** tento
+    commit proběhne až *po* tom, co FastAPI odešle odpověď klientovi. U
+    Post/Redirect/Get to znamená, že mutační routa **nesmí** spoléhat jen na
+    tento commit — prohlížeč po ``303`` vystřelí následný ``GET`` dřív, než
+    teardown proběhne, a přečetl by ještě nezacommitovaná data (viz
+    ``regina.web.commit.commit_before_redirect``). Mutační routy proto po zápisu
+    commitnou **explicitně** ještě před vrácením přesměrování; tento úklidový
+    commit je pak už jen no-op pojistka (a commit u čtecích rout beze změn).
+    """
     with session_scope() as session:
         yield session
 

@@ -38,7 +38,7 @@ from regina.auth.deps import CurrentUser, SessionDep, require_manage_roles
 from regina.domain.enums import Role, RoleSource
 from regina.repositories import users as users_repo
 from regina.services.users import LastAdminError, set_role
-from regina.web.flash import redirect_with_flash
+from regina.web.flash import redirect_after_write, redirect_with_flash
 from regina.web.templating import page_context
 
 router = APIRouter(tags=["uzivatele"])
@@ -159,4 +159,4 @@ async def change_user_role(
             type="error",
         )
 
-    return redirect_with_flash(_LIST_PATH, "Role byla změněna.")
+    return redirect_after_write(session, _LIST_PATH, "Role byla změněna.")

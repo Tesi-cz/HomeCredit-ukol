@@ -75,7 +75,7 @@ from regina.services.applications import (
     update_application,
 )
 from regina.web import forms
-from regina.web.flash import redirect_with_flash
+from regina.web.flash import redirect_after_write, redirect_with_flash
 from regina.web.forms import (
     FormValidationError,
     parse_application_form,
@@ -594,7 +594,11 @@ def create_application_route(
     )
     session.flush()  # Zajistí application.id pro URL detailu ještě před commitem.
 
-    return redirect_with_flash(
+    # Commit ještě před přesměrováním: následný GET detailu musí vidět nový
+    # záznam (jinak by narazil na 404 / stará data kvůli race, viz
+    # redirect_after_write).
+    return redirect_after_write(
+        session,
         f"/registr/{application.id}",
         "Aplikace byla zaregistrována.",
     )
@@ -815,7 +819,7 @@ def update_application_route(
             **edit_kwargs,
         )
 
-    return redirect_with_flash(detail_href, "Změny byly uloženy.")
+    return redirect_after_write(session, detail_href, "Změny byly uloženy.")
 
 
 # --- Vyřazení a návrat z vyřazení (úkol 15.2, ui.md sekce 7, R5.12–R5.14) -
@@ -896,10 +900,12 @@ def decommission_route(
 
     if application.lifecycle_state == str(LifecycleState.DECOMMISSIONED):
         reactivate_application(session, user, application)
-        return redirect_with_flash(detail_href, "Aplikace byla vrácena z vyřazení.")
+        return redirect_after_write(
+            session, detail_href, "Aplikace byla vrácena z vyřazení."
+        )
 
     decommission_application(session, user, application)
-    return redirect_with_flash(detail_href, "Aplikace byla vyřazena.")
+    return redirect_after_write(session, detail_href, "Aplikace byla vyřazena.")
 
 
 # --- Přepis klasifikace správcem (úkol 15.2/13.2, ui.md sekce 7, R7) ------
@@ -1032,7 +1038,8 @@ def override_classification_route(
         session, application, user, new_classification, reason
     )
 
-    return redirect_with_flash(
+    return redirect_after_write(
+        session,
         f"/registr/{application.id}",
         "Klasifikace byla přepsána.",
     )
