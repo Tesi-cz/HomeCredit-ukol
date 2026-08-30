@@ -24,6 +24,7 @@ from regina.auth.deps import register_auth_handlers
 from regina.auth.oidc import build_oidc_client
 from regina.config import Settings, load_settings
 from regina.db import session as db_session
+from regina.llm.factory import build_llm_client
 from regina.logging import (
     configure_logging,
     get_logger,
@@ -32,9 +33,11 @@ from regina.logging import (
 )
 from regina.seed import run_seed
 from regina.services.retention import run_retention_loop
+from regina.web.routes.advisor import router as advisor_router
 from regina.web.routes.audit import router as audit_router
 from regina.web.routes.auth import router as auth_router
 from regina.web.routes.export import router as export_router
+from regina.web.routes.llm_log import router as llm_log_router
 from regina.web.routes.mine import router as mine_router
 from regina.web.routes.registry import router as registry_router
 from regina.web.routes.users import router as users_router
@@ -248,6 +251,13 @@ def _register_routes(app: FastAPI) -> None:
     # Export CSV `/export/registr` a `/export/audit` (úkol 18.1). Chráněný
     # `require_export` — exportovat smí jen role Admin (R10.1, R10.2, R10.4).
     app.include_router(export_router)
+    # Výpis volání modelu `/volani-ai` (classification-advisor R6.3). Chráněný
+    # `require_read_audit` — čte jen role Admin. Read-only, bez obsahu volání.
+    app.include_router(llm_log_router)
+    # AI funkce formuláře (classification-advisor R2–R4): poradce klasifikace
+    # `/registr/poradce` a úprava popisu `/registr/uprava-popisu`. Chráněné
+    # přihlášením + CSRF; zápis klasifikace řeší až registry routy s guardy.
+    app.include_router(advisor_router)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -267,6 +277,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # OIDC klient se skládá jednou při startu z konfigurace; routy ho čtou
     # z `app.state`. Je vláknově bezpečný, takže ho může sdílet celá aplikace.
     app.state.oidc_client = build_oidc_client(resolved)
+    # Klient jazykového modelu pro poradce a AI úpravu popisu. Skládá se jednou
+    # z konfigurace (bez klíče vrátí mock, R1.5) a je vláknově bezpečný, takže
+    # ho sdílí celá aplikace — stejný vzor jako OIDC klient.
+    app.state.llm_client = build_llm_client(resolved)
 
     _register_middleware(app)
     _register_web(app)

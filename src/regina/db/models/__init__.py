@@ -11,6 +11,8 @@ from regina.db.base import Base
 from regina.db.models.applications import Application
 from regina.db.models.audit_log import AuditLog
 from regina.db.models.classification_log import ClassificationLog
+from regina.db.models.classification_suggestion import ClassificationSuggestion
+from regina.db.models.llm_call_log import LLMCallLog
 from regina.db.models.users import User
 
 __all__ = [
@@ -18,5 +20,7 @@ __all__ = [
     "User",
     "Application",
     "ClassificationLog",
+    "ClassificationSuggestion",
+    "LLMCallLog",
     "AuditLog",
 ]

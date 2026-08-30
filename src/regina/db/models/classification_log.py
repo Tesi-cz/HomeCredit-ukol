@@ -33,8 +33,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from regina.db.base import Base
 
-# Rozšiřitelný výčet (database.md 9). Jádro zná dvě hodnoty, poradce přidá další.
-CLASSIFICATION_SOURCE_VALUES = ("HUMAN", "ADMIN_OVERRIDE")
+# Rozšiřitelný výčet (database.md 9). Poradce (classification-advisor) doplnil
+# AI a AI_OVERRIDDEN vedle jádrových HUMAN a ADMIN_OVERRIDE.
+CLASSIFICATION_SOURCE_VALUES = ("HUMAN", "AI", "AI_OVERRIDDEN", "ADMIN_OVERRIDE")
 # Klasifikace samotná používá stejné hodnoty jako `applications.classification`.
 CLASSIFICATION_VALUES = ("SMALL", "MEDIUM", "LARGE")
 
@@ -70,6 +71,17 @@ class ClassificationLog(Base):
 
     # Povinný pro ADMIN_OVERRIDE — vynuceno `CHECK` constraintem v úkolu 4.2.
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Vazba na doporučení poradce (classification-advisor). Prázdné, když
+    # poradce neběžel (HUMAN bez wizardu, ADMIN_OVERRIDE); vyplněné u AI /
+    # AI_OVERRIDDEN. `ON DELETE SET NULL`: retence smí smazat staré doporučení,
+    # ale historie klasifikace je nemazatelná — smazání jen vynuluje odkaz,
+    # řádek zůstává (R7.3).
+    suggestion_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("classification_suggestions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Člověk, který klasifikaci zapsal. `ON DELETE RESTRICT`: autorství zápisu
     # musí zůstat dohledatelné (database.md 10).

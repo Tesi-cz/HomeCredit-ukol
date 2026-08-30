@@ -1,0 +1,35 @@
+{#
+  Fragment výsledku AI úpravy popisu (classification-advisor R4).
+
+  Vrací ho `POST /registr/uprava-popisu`; JS jím nahradí obsah kontejneru pod
+  polem popis. Při úspěchu ukáže návrh s tlačítky Použít / Zahodit; návrh se
+  nikam neukládá (R4.6), převzetí jen nahradí obsah textarea přes JS. Při
+  chybě/prázdném popisu ukáže nezávaznou českou hlášku; pole zůstává (R4.5).
+
+  Kontext: `result` (RewriteResult s ok / text / error_message).
+#}
+
+{% if result.ok %}
+<div class="space-y-sm rounded-md border border-border-gray bg-white p-md">
+  <p class="text-caption font-bold text-gray-light">Návrh upraveného popisu</p>
+  {# Text návrhu drží data-atribut, aby ho JS mohl vložit do textarea beze
+     ztráty formátování; zobrazený text je týž. #}
+  <p class="text-body text-dark" data-rewrite-text>{{ result.text }}</p>
+  <div class="flex items-center gap-sm">
+    <button
+      type="button"
+      class="flex h-9 items-center gap-sm rounded-md bg-navy px-md font-heading font-bold text-white transition-colors hover:bg-navy/90"
+      data-rewrite-apply
+    >Použít</button>
+    <button
+      type="button"
+      class="flex h-9 items-center rounded-md border border-border-gray px-md text-body text-dark transition-colors hover:bg-bg-warm"
+      data-rewrite-discard
+    >Zahodit</button>
+  </div>
+</div>
+{% else %}
+<div class="rounded-md border border-hc-red/40 bg-hc-red/10 p-md text-caption text-hc-red" role="alert">
+  {{ result.error_message }}
+</div>
+{% endif %}

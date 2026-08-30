@@ -141,22 +141,9 @@
         <h1 class="min-w-0 flex-1 truncate font-heading text-h4 font-bold text-black">
           {% block section_title %}{{ section_title }}{% endblock %}
         </h1>
-
-        <form method="get" action="/registr" role="search" class="hidden items-center desktop:flex">
-          <label for="hledat" class="sr-only">Hledat aplikaci</label>
-          <div class="relative">
-            <svg class="pointer-events-none absolute left-md top-1/2 h-5 w-5 -translate-y-1/2 text-gray-light" aria-hidden="true">
-              <use href="/static/icons/icons.svg#hledat"></use>
-            </svg>
-            <input
-              type="search"
-              id="hledat"
-              name="q"
-              placeholder="Hledat aplikaci..."
-              class="w-64 rounded-full border border-border-input bg-bg-warm py-sm pl-2xl pr-md text-body text-dark placeholder:text-gray-light"
-            >
-          </div>
-        </form>
+        {# Globální vyhledávání v horní liště bylo odstraněno — hledání má každá
+           obrazovka vlastní v obsahu (Registr, Moje aplikace), takže duplicitní
+           pole nahoře nemělo přínos. #}
       </header>
 
       {# ---------- Obsah stránky ---------- #}

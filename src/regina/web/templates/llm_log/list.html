@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{#
+  Obrazovka Volání AI (classification-advisor R6.3).
+
+  Read-only technický přehled volání jazykového modelu od nejnovějšího se
+  sloupci Čas, Implementace, Operace, Model, Tokeny, Latence, Stav. BEZ obsahu
+  promptu i odpovědi — ten se neukládá (R6.2), takže výpis nemá co citlivého
+  zobrazit.
+
+  Výsledky (tabulka + stránkování) jsou v partialu `llm_log/_results.html`,
+  vykresleném v kontejneru `#vysledky-volani-ai`. Živé překreslování (JS
+  `live-search.js`) tentýž partial načítá z `GET /volani-ai/fragment` při
+  změně stránky.
+
+  Vyhrazeno roli Admin — vynucení je na backendu (`require_read_audit`), tato
+  šablona se roli User nikdy nevykreslí (403). Sidebar položku roli User skrývá.
+
+  České popisky, žádné strojové kódy (R13.11): implementace/operace/stav přes
+  `llm_*_label`, čas přes `datum_cas`.
+#}
+
+{% block title %}Volání AI{% endblock %}
+
+{% block content %}
+<section class="space-y-md">
+
+  {# Poznámka o tom, co se (ne)ukládá — klíčové bezpečnostní tvrzení (R6.2). #}
+  <p class="flex items-start gap-sm text-caption text-gray-light">
+    <svg class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true">
+      <use href="/static/icons/icons.svg#ai"></use>
+    </svg>
+    <span>
+      Technický přehled volání jazykového modelu. Neukládá se obsah promptu ani
+      odpovědi — jen model, čas, počty tokenů a výsledek. Záznamy podléhají
+      retenční lhůtě a po jejím uplynutí je automaticky odstraní retenční rutina.
+    </span>
+  </p>
+
+  <div id="vysledky-volani-ai" aria-live="polite">
+    {% include "llm_log/_results.html" %}
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/live-search.js" defer></script>
+{% endblock %}

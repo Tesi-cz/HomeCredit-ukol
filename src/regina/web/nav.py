@@ -67,6 +67,13 @@ NAV_ITEMS: tuple[NavItem, ...] = (
         icon="audit",
         admin_only=True,
     ),
+    NavItem(
+        key="volani-ai",
+        label="Volání AI",
+        href="/volani-ai",
+        icon="ai",
+        admin_only=True,
+    ),
 )
 
 

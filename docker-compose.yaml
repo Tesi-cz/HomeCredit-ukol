@@ -81,6 +81,17 @@ services:
       RETENTION_DECOMMISSIONED_APP_DAYS: ${RETENTION_DECOMMISSIONED_APP_DAYS:-730}
       RETENTION_INTERVAL_HOURS: ${RETENTION_INTERVAL_HOURS:-24}
       RETENTION_ENABLED: ${RETENTION_ENABLED:-true}
+      # Klasifikační poradce a AI úprava popisu (classification-advisor).
+      # Klíč je nepovinný — bez něj běží mock režim. Ostatní mají výchozí
+      # hodnoty, takže bez .env aplikace naběhne.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
+      LLM_MODEL: ${LLM_MODEL:-openai/gpt-4o-mini}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
+      LLM_REASONING: ${LLM_REASONING:-off}
+      RETENTION_LLM_CALL_LOG_DAYS: ${RETENTION_LLM_CALL_LOG_DAYS:-90}
+      RETENTION_SUGGESTION_DAYS: ${RETENTION_SUGGESTION_DAYS:-180}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SEED_ON_START: ${SEED_ON_START:-true}
     ports:

@@ -64,6 +64,30 @@ class Settings(BaseSettings):
     retention_interval_hours: int = 24
     retention_enabled: bool = True
 
+    # --- Klasifikační poradce a AI úprava popisu (classification-advisor) ---
+    # Volání modelu jde výhradně přes vlastní abstrakci `llm/`; zde jen
+    # konfigurace. API klíč je NEPOVINNÝ: bez něj aplikace naběhne a poradce
+    # běží v mock/deterministickém režimu (R1.5, R8.3). Klíč patří jen do
+    # lokálního `.env`, nikdy do kódu, image ani repozitáře (R1.4, R8.2).
+    openrouter_api_key: str | None = None
+    # Výběr implementace: "openrouter" nebo "mock". Prázdné = automaticky
+    # podle přítomnosti klíče (viz `llm_provider_effective`).
+    llm_provider: str | None = None
+    # Base URL poskytovatele. Přepnutí na firemní AI Gateway je změna této
+    # hodnoty, ne kódu (R1.3). Model-ID je default v konfiguraci, ne v kódu.
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+    llm_model: str = "openai/gpt-4o-mini"
+    llm_timeout_seconds: int = 30
+    # Řízení "přemýšlení" (reasoning) modelu. Ne-reasoning modely (gpt-4o-mini)
+    # ho ignorují; u reasoning modelů (např. deepseek-v4-flash) `off` vypne
+    # řetěz úvah = rychlejší a levnější odpověď. Hodnoty: off / low / medium /
+    # high / auto. `auto` = nechá na modelu (nepošle parametr).
+    llm_reasoning: str = "off"
+
+    # --- Retence dat poradce (R7) ---
+    retention_llm_call_log_days: int = 90
+    retention_suggestion_days: int = 180
+
     # --- Provoz ---
     log_level: str = "INFO"
     seed_on_start: bool = True
@@ -77,10 +101,45 @@ class Settings(BaseSettings):
             raise ValueError(f"LOG_LEVEL musí být jedna z hodnot: {', '.join(sorted(allowed))}")
         return normalized
 
-    @field_validator("oidc_issuer", "base_url")
+    @field_validator("oidc_issuer", "base_url", "llm_base_url")
     @classmethod
     def _strip_trailing_slash(cls, value: str) -> str:
         return value.rstrip("/")
+
+    @field_validator("llm_provider")
+    @classmethod
+    def _normalize_llm_provider(cls, value: str | None) -> str | None:
+        """Povolí jen "openrouter" nebo "mock" (nebo prázdno = automaticky)."""
+        if value is None or not value.strip():
+            return None
+        normalized = value.strip().lower()
+        if normalized not in {"openrouter", "mock"}:
+            raise ValueError('LLM_PROVIDER musí být "openrouter" nebo "mock".')
+        return normalized
+
+    @field_validator("llm_reasoning")
+    @classmethod
+    def _normalize_llm_reasoning(cls, value: str) -> str:
+        """Povolí jen off / low / medium / high / auto (jinak jasná chyba startu)."""
+        normalized = (value or "").strip().lower()
+        allowed = {"off", "low", "medium", "high", "auto"}
+        if normalized not in allowed:
+            raise ValueError(
+                "LLM_REASONING musí být jedna z hodnot: " + ", ".join(sorted(allowed))
+            )
+        return normalized
+
+    @property
+    def llm_provider_effective(self) -> str:
+        """Skutečně použitý provider modelu.
+
+        Když je `LLM_PROVIDER` nastavený, má přednost. Jinak se odvodí od
+        přítomnosti API klíče: s klíčem `openrouter`, bez klíče `mock`. Tím
+        aplikace naběhne i bez klíče a poradce běží v mock režimu (R1.5, R8.3).
+        """
+        if self.llm_provider is not None:
+            return self.llm_provider
+        return "openrouter" if (self.openrouter_api_key or "").strip() else "mock"
 
     @property
     def departments(self) -> tuple[str, ...]:

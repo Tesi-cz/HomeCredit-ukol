@@ -275,6 +275,10 @@ def build_templates() -> Jinja2Templates:
     templates.env.globals["label"] = labels.label
     templates.env.globals["classification_label"] = labels.classification_label
     templates.env.globals["NO_CLASSIFICATION_LABEL"] = labels.NO_CLASSIFICATION_LABEL
+    # Popisky technických kódů logu volání modelu (classification-advisor R6.3).
+    templates.env.globals["llm_gateway_impl_label"] = labels.llm_gateway_impl_label
+    templates.env.globals["llm_operation_label"] = labels.llm_operation_label
+    templates.env.globals["llm_status_label"] = labels.llm_status_label
 
     # Barevné varianty badge komponent (jen vzhled, ne text).
     templates.env.globals["lifecycle_state_variant"] = lifecycle_state_variant

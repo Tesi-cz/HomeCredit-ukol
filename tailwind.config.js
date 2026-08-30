@@ -10,7 +10,12 @@
  * se objevují jen v šablonách. Cesta je shodná s tím, co kopíruje Dockerfile.
  */
 module.exports = {
-  content: ['./src/regina/web/templates/**/*.html'],
+  content: [
+    './src/regina/web/templates/**/*.html',
+    // JS progresivního vylepšení používá utility třídy (spinner, disabled
+    // stavy) vkládané za běhu — bez skenování JS by je Tailwind vyřadil.
+    './src/regina/web/static/js/**/*.js',
+  ],
   theme: {
     extend: {
       colors: {
