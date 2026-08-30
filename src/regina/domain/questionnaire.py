@@ -139,6 +139,22 @@ def missing_dimensions(answers: dict[str, str]) -> list[str]:
     return [q.dimension for q in QUESTIONS if not answers.get(q.dimension)]
 
 
+def answer_label(dimension: str, answer_code: str) -> str:
+    """Český popisek zvolené odpovědi pro danou dimenzi.
+
+    Slouží k sestavení promptu pro model — ten potřebuje **význam** volby
+    (např. „50–500 uživatelů"), ne jen její bodovou váhu, jinak si smysl
+    domýšlí. Neznámý kód vrátí prázdný řetězec (defenzivně).
+    """
+    question = _QUESTIONS_BY_DIMENSION.get(dimension)
+    if question is None:
+        return ""
+    for answer in question.answers:
+        if answer.code == answer_code:
+            return answer.label
+    return ""
+
+
 def score_breakdown(answers: dict[str, str]) -> dict[str, int]:
     """Váha zvolené odpovědi po dimenzích. Vyžaduje kompletní odpovědi.
 

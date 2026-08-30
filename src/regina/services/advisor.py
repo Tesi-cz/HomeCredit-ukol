@@ -37,10 +37,12 @@ from regina.services.anonymization import anonymize, rehydrate
 #: je „opravovat" zpět na jména.
 CLASSIFY_SYSTEM_PROMPT = (
     "Jsi asistent pro klasifikaci interních firemních aplikací ve finanční "
-    "instituci. Na základě odpovědí dotazníku doporučíš velikostní klasifikaci "
-    "MALÁ, STŘEDNÍ, nebo VELKÁ a stručně ji zdůvodníš česky (2–4 věty). "
-    "Vstup může obsahovat zástupné symboly typu [[JMENO_1]] nebo [[EMAIL_1]] — "
-    "ponech je beze změny, nedoplňuj za ně konkrétní údaje. Odpovíš čistým "
+    "instituci. Dostaneš navrženou úroveň (MALÁ/STŘEDNÍ/VELKÁ) a odpovědi "
+    "dotazníku. Tvým úkolem je tuto úroveň stručně zdůvodnit česky (2–4 věty). "
+    "Zdůvodnění opři VÝHRADNĚ o text zvolených odpovědí — nikdy nezmiňuj čísla "
+    "ani body a nezaměňuj je za počty (číslo bodů 1 až 3 je míra závažnosti, "
+    "ne počet uživatelů či systémů). Vstup může obsahovat zástupné symboly typu "
+    "[[JMENO_1]] nebo [[EMAIL_1]] — ponech je beze změny. Odpovíš čistým "
     "zdůvodněním bez nadpisů."
 )
 
@@ -113,7 +115,7 @@ def request_suggestion(
     # Volání modelu. Když selže nebo vrátí prázdný text, zůstává deterministický
     # fallback. Anonymizace poznámky proběhne vždy před odesláním (R5.3).
     masked_note, mapping = anonymize(note or "", known_names=known_names)
-    user_prompt = _build_user_prompt(breakdown, total, baseline, masked_note)
+    user_prompt = _build_user_prompt(answers, breakdown, total, baseline, masked_note)
     request = LLMRequest(
         operation=Operation.CLASSIFY,
         system_prompt=CLASSIFY_SYSTEM_PROMPT,
@@ -165,6 +167,7 @@ def request_suggestion(
 
 
 def _build_user_prompt(
+    answers: dict[str, str],
     breakdown: dict[str, int],
     total: int,
     baseline: Classification,
@@ -172,16 +175,19 @@ def _build_user_prompt(
 ) -> str:
     """Sestaví anonymizovaný uživatelský prompt z odpovědí a skóre.
 
-    Používá popisky otázek a zvolených odpovědí (české texty z katalogu), skóre
-    po dimenzích a deterministickou baseline jako vodítko. Poznámka je už
+    Každý řádek nese **text zvolené odpovědi** (aby model znal její význam,
+    ne jen bodovou váhu) a k tomu body. Bez textu odpovědi by si model smysl
+    čísla domýšlel a zdůvodnění by neodpovídalo skutečné volbě. Poznámka je už
     anonymizovaná (placeholdery).
     """
-    lines = ["Odpovědi dotazníku a jejich bodové hodnocení:"]
+    # Modelu posíláme jen navrženou úroveň a TEXT zvolených odpovědí — žádná
+    # čísla ani body, aby si je nepletl s počty (halucinace typu „3 uživatelé"
+    # z 3 bodů). Skóre je naše interní věc pro výpočet baseline.
+    lines = [f"Navržená klasifikace: {classification_label(baseline)}."]
+    lines.append("Odpovědi z dotazníku:")
     for question in questionnaire.QUESTIONS:
-        weight = breakdown[question.dimension]
-        lines.append(f"- {question.title} → {weight} b.")
-    lines.append(f"Celkové skóre: {total} z {questionnaire.SCORE_MAX}.")
-    lines.append(f"Bodové doporučení: {classification_label(baseline)}.")
+        choice = questionnaire.answer_label(question.dimension, answers[question.dimension])
+        lines.append(f"- {question.title} {choice}")
     if masked_note.strip():
         lines.append(f"Poznámka zadavatele: {masked_note.strip()}")
     lines.append(
