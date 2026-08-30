@@ -140,14 +140,17 @@ logy. Účet **Petr Svoboda** ukazuje pohled běžného uživatele včetně rež
 
 ### Model použitý při vývoji
 
-Řešení bylo postavené ve spolupráci s AI asistentem v prostředí Kiro.
+Řešení bylo postavené ve spolupráci s AI asistentem v prostředí Kiro. Podle
+náročnosti kroku se kombinovalo víc modelů:
 
-- **Model:** Anthropic Claude (Sonnet)
-- **Verze:** `<přesná verze modelu — doplní autor>`
+- **Návrh a jádro (hlavní model):** **Claude Opus 5** — první požadavky, návrh
+  databáze, návrh aplikace, plán úkolů a vytvoření základní verze aplikace.
+- **Doplňkové úpravy (slabší modely):** UI úpravy, menší funkce a klasifikační
+  wizard vznikly kombinací lehčích modelů.
+- **Prostředí:** AI asistent v Kiro.
 
-> Přesné označení a verzi modelu doplňte podle prostředí, ve kterém byl úkol
-> zpracován (v Kiro je zvolený model uvedený v nastavení asistenta). Placeholder
-> je zde záměrně, aby v README nebyla nepodložená verze.
+Těžiště práce — architektura, datový model, autorizace a LLM abstrakce — leží na
+**Opusu 5**; slabší modely řešily jen navazující, méně rizikové úpravy.
 
 ### Model uvnitř aplikace
 
@@ -443,14 +446,6 @@ Panel poradce ukáže zdůvodnění od modelu, ale tlačítko „Použít" před
 úroveň v poli klasifikace kdykoli ručně změnit a zápis to korektně zaznamená jako
 `AI_OVERRIDDEN`. **Skutečné řešení:** viz předchozí bod — parsovat úroveň z
 odpovědi modelu.
-
-### Přesná verze modelu je zatím zástupná
-
-V sekci [Použitý model a Master Prompt](#použitý-model-a-master-prompt) je verze
-modelu uvedená jako placeholder `<přesná verze modelu — doplní autor>`. **Proč:**
-přesné označení a verzi zná až prostředí, ve kterém byl úkol zpracován; raději
-placeholder než nepodložené číslo v README. **Skutečné řešení:** autor doplní
-konkrétní verzi podle nastavení asistenta v Kiro.
 
 ### Retence běží per-instance bez distribučního zámku
 

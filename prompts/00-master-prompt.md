@@ -10,13 +10,17 @@ přímo ze složky `prompts/`.
 
 ## Model použitý při vývoji
 
-- **Model:** Anthropic Claude (Sonnet)
-- **Verze:** `<přesná verze modelu — doplní autor>`
-- **Prostředí:** AI asistent v Kiro
+Na řešení se podílelo víc modelů podle náročnosti kroku:
 
-> Přesnou verzi modelu doplní autor podle nastavení asistenta v prostředí, ve
-> kterém byl úkol zpracován. Placeholder je záměrný — raději nevyplněná verze
-> než nepodložené číslo. Stejný placeholder je i v hlavním `README.md`.
+- **Návrh a jádro (hlavní model):** **Claude Opus 5** — použit na první
+  požadavky, návrh databáze, návrh aplikace, plán úkolů a na vytvoření základní
+  verze aplikace.
+- **Doplňkové úpravy (slabší modely):** UI úpravy, menší funkce a klasifikační
+  wizard vznikly kombinací lehčích modelů, kde nebyla potřeba plná síla Opusu.
+- **Prostředí:** AI asistent v Kiro.
+
+Těžiště práce (architektura, datový model, autorizace, LLM abstrakce) tedy leží
+na Opusu 5; slabší modely řešily jen navazující, méně rizikové úpravy.
 
 ## Jak byl Master Prompt použit
 
