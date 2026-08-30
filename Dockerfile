@@ -20,6 +20,10 @@ RUN npm ci --no-audit --no-fund
 COPY tailwind.config.js ./
 COPY src/regina/web/templates ./src/regina/web/templates
 COPY src/regina/web/static/css/input.css ./src/regina/web/static/css/input.css
+# JS progresivního vylepšení používá utility třídy vkládané za běhu (spinner,
+# disabled stavy). Tailwind je musí vidět při skenování `content`, jinak je
+# vyřadí — proto se JS kopíruje ještě před build krokem.
+COPY src/regina/web/static/js ./src/regina/web/static/js
 
 RUN npx tailwindcss \
       -i ./src/regina/web/static/css/input.css \

@@ -156,7 +156,12 @@ REGINA volá jazykový model ve dvou funkcích (specifikace `classification-advi
 popisu**. Obě popisuje sekce [AI funkce](#ai-funkce).
 
 - **Poskytovatel (výchozí):** [OpenRouter](https://openrouter.ai)
-- **Model (výchozí):** `deepseek/deepseek-v4-flash`
+- **Model (výchozí):** `openai/gpt-4o-mini` — rychlý a levný ne-reasoning model,
+  vhodný pro krátké zdůvodnění a přepis textu. Lze přepnout na jiný (např.
+  `deepseek/deepseek-v4-flash`) změnou `LLM_MODEL` v `.env`.
+- **Reasoning:** proměnná `LLM_REASONING` (výchozí `off`). U reasoning modelů
+  vypne řetěz úvah kvůli rychlosti a ceně; ne-reasoning modely ji ignorují.
+  Hodnoty: `off` / `low` / `medium` / `high` / `auto`.
 - **Kde se nastaví:** proměnné `LLM_*` v `.env` (viz `.env.example`). Model ani
   poskytovatel nejsou napevno v kódu.
 

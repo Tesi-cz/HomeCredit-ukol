@@ -21,6 +21,22 @@
     return el.closest("form");
   }
 
+  // Indikátor probíhajícího volání modelu: točící se kolečko + hláška.
+  // Vkládá se do výsledkového kontejneru hned po kliknutí, než dorazí odpověď.
+  function spinnerMarkup(text) {
+    return (
+      '<div class="flex items-center gap-sm rounded-md border border-border-gray bg-white p-md text-caption text-gray-light" role="status" aria-live="polite">' +
+      '<svg class="h-5 w-5 animate-spin text-navy" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+      '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+      '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>' +
+      "</svg>" +
+      "<span>" +
+      text +
+      "</span>" +
+      "</div>"
+    );
+  }
+
   async function postForm(url, params, signal) {
     var response = await fetch(url, {
       method: "POST",
@@ -69,7 +85,17 @@
         params.set(note.name, note.value);
       }
 
+      // Loading stav: kolečko ve výsledku + zablokované tlačítko s hláškou.
+      var originalHtml = trigger.innerHTML;
       trigger.disabled = true;
+      trigger.classList.add("opacity-60", "cursor-not-allowed");
+      trigger.innerHTML =
+        '<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+        '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+        '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>' +
+        "</svg><span>Navrhuji…</span>";
+      result.innerHTML = spinnerMarkup("AI navrhuje klasifikaci, chvíli strpení…");
+
       postForm(url, params, controller.signal)
         .then(function (html) {
           result.innerHTML = html;
@@ -86,6 +112,8 @@
         })
         .finally(function () {
           trigger.disabled = false;
+          trigger.classList.remove("opacity-60", "cursor-not-allowed");
+          trigger.innerHTML = originalHtml;
         });
     });
   }
@@ -143,7 +171,17 @@
       params.set("csrf_token", csrfToken(form));
       params.set("popis", input.value);
 
+      // Loading stav: kolečko ve výsledku + zablokované tlačítko s hláškou.
+      var originalHtml = trigger.innerHTML;
       trigger.disabled = true;
+      trigger.classList.add("opacity-60", "cursor-not-allowed");
+      trigger.innerHTML =
+        '<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+        '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+        '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>' +
+        "</svg><span>Upravuji…</span>";
+      result.innerHTML = spinnerMarkup("AI upravuje popis, chvíli strpení…");
+
       postForm(url, params, controller.signal)
         .then(function (html) {
           result.innerHTML = html;
@@ -160,6 +198,8 @@
         })
         .finally(function () {
           trigger.disabled = false;
+          trigger.classList.remove("opacity-60", "cursor-not-allowed");
+          trigger.innerHTML = originalHtml;
         });
     });
   }

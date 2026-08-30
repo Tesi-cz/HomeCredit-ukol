@@ -36,11 +36,16 @@ class OpenRouterClient:
         base_url: str,
         model: str,
         timeout_seconds: int,
+        reasoning: str = "off",
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._timeout = timeout_seconds
+        # Řízení reasoningu (classification-advisor): "off" vypne řetěz úvah
+        # u reasoning modelů (rychlejší, levnější odpověď); "auto" nechá na
+        # modelu (parametr se nepošle); low/medium/high nastaví úsilí.
+        self._reasoning = reasoning
 
     def complete(self, request: LLMRequest) -> LLMResponse:
         """Zavolá model a vrátí odpověď; chybu převede na status, nevyhazuje."""
@@ -54,6 +59,12 @@ class OpenRouterClient:
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
         }
+        # Řízení reasoningu přes sjednocený parametr OpenRouteru. "off" vypne
+        # řetěz úvah (ne-reasoning modely to ignorují), low/medium/high nastaví
+        # úsilí; "auto" parametr nepošle a nechá rozhodnutí na modelu.
+        reasoning_param = self._reasoning_payload()
+        if reasoning_param is not None:
+            payload["reasoning"] = reasoning_param
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
@@ -123,3 +134,21 @@ class OpenRouterClient:
             latency_ms=latency_ms,
             error_code=error_code,
         )
+
+    def _reasoning_payload(self) -> dict | None:
+        """Přeloží konfiguraci reasoningu na `reasoning` blok OpenRouteru.
+
+        - `off` → `{"enabled": false}` (vypne řetěz úvah; ne-reasoning modely
+          to ignorují),
+        - `low`/`medium`/`high` → `{"effort": "..."}` (nastaví úsilí),
+        - `auto` → `None` (parametr se nepošle, rozhodne model).
+
+        Neznámá hodnota (nemělo by nastat — validuje config) se chová jako
+        `auto`, aby request nikdy nespadl kvůli reasoningu.
+        """
+        value = (self._reasoning or "auto").lower()
+        if value == "off":
+            return {"enabled": False}
+        if value in {"low", "medium", "high"}:
+            return {"effort": value}
+        return None

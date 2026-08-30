@@ -76,8 +76,13 @@ class Settings(BaseSettings):
     # Base URL poskytovatele. Přepnutí na firemní AI Gateway je změna této
     # hodnoty, ne kódu (R1.3). Model-ID je default v konfiguraci, ne v kódu.
     llm_base_url: str = "https://openrouter.ai/api/v1"
-    llm_model: str = "deepseek/deepseek-v4-flash"
+    llm_model: str = "openai/gpt-4o-mini"
     llm_timeout_seconds: int = 30
+    # Řízení "přemýšlení" (reasoning) modelu. Ne-reasoning modely (gpt-4o-mini)
+    # ho ignorují; u reasoning modelů (např. deepseek-v4-flash) `off` vypne
+    # řetěz úvah = rychlejší a levnější odpověď. Hodnoty: off / low / medium /
+    # high / auto. `auto` = nechá na modelu (nepošle parametr).
+    llm_reasoning: str = "off"
 
     # --- Retence dat poradce (R7) ---
     retention_llm_call_log_days: int = 90
@@ -110,6 +115,18 @@ class Settings(BaseSettings):
         normalized = value.strip().lower()
         if normalized not in {"openrouter", "mock"}:
             raise ValueError('LLM_PROVIDER musí být "openrouter" nebo "mock".')
+        return normalized
+
+    @field_validator("llm_reasoning")
+    @classmethod
+    def _normalize_llm_reasoning(cls, value: str) -> str:
+        """Povolí jen off / low / medium / high / auto (jinak jasná chyba startu)."""
+        normalized = (value or "").strip().lower()
+        allowed = {"off", "low", "medium", "high", "auto"}
+        if normalized not in allowed:
+            raise ValueError(
+                "LLM_REASONING musí být jedna z hodnot: " + ", ".join(sorted(allowed))
+            )
         return normalized
 
     @property
