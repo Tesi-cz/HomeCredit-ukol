@@ -58,7 +58,10 @@ from regina.db.models.applications import Application
 from regina.domain.enums import LifecycleState
 from regina.services import audit
 from regina.services.audit import AuditActor
-from regina.services.classification import set_classification
+from regina.services.classification import (
+    set_classification,
+    set_classification_from_suggestion,
+)
 from regina.web import forms
 from regina.web.forms import ApplicationForm
 
@@ -119,10 +122,50 @@ def _reject_decommission_via_edit(form: ApplicationForm) -> None:
         )
 
 
+def _write_form_classification(
+    session: Session,
+    application: Application,
+    actor: AuditActor,
+    form: ApplicationForm,
+    *,
+    advisor_suggestion_id: int | None,
+    advisor_suggested: Classification | None,
+) -> None:
+    """Zapíše klasifikaci z formuláře přes jediného zapisovače (R6.1).
+
+    Rozhoduje o **zdroji** zápisu (classification-advisor R3.5–R3.8):
+
+    - přišel-li odkaz na doporučení poradce (``advisor_suggestion_id``) a
+      navržená úroveň, jde zápis přes ``set_classification_from_suggestion`` —
+      shoda zvolené a navržené úrovně → ``AI``, rozdíl → ``AI_OVERRIDDEN``,
+      s uložením ``suggestion_id`` do historie (R3.9);
+    - jinak běžný ruční zápis ``set_classification`` (``source = HUMAN``).
+
+    Klasifikaci nikdy nenastavuje přiřazením sloupce; oba vstupní body drží
+    transakční invariant i audit ``CLASSIFICATION_SET``.
+    """
+    if form.classification is None:
+        return
+    if advisor_suggestion_id is not None and advisor_suggested is not None:
+        set_classification_from_suggestion(
+            session,
+            application,
+            actor,
+            chosen_classification=form.classification,
+            suggested_classification=advisor_suggested,
+            suggestion_id=advisor_suggestion_id,
+        )
+    else:
+        set_classification(session, application, actor, form.classification)
+
+
 def create_application(
     session: Session,
     actor: AuditActor,
     form: ApplicationForm,
+    *,
+    advisor_suggestion_id: int | None = None,
+    advisor_suggested: Classification | None = None,
 ) -> Application:
     """Založí nový záznam z ověřeného formuláře; zapíše audit a klasifikaci.
 
@@ -173,9 +216,15 @@ def create_application(
     )
 
     # Počáteční klasifikace jen pokud ji formulář nese (R5.7 — smí vzniknout
-    # neklasifikovaný). Prochází jediným zapisovačem se source=HUMAN.
-    if form.classification is not None:
-        set_classification(session, application, actor, form.classification)
+    # neklasifikovaný). Zdroj (HUMAN / AI / AI_OVERRIDDEN) rozhodne helper.
+    _write_form_classification(
+        session,
+        application,
+        actor,
+        form,
+        advisor_suggestion_id=advisor_suggestion_id,
+        advisor_suggested=advisor_suggested,
+    )
 
     return application
 
@@ -185,6 +234,9 @@ def update_application(
     actor: AuditActor,
     application: Application,
     form: ApplicationForm,
+    *,
+    advisor_suggestion_id: int | None = None,
+    advisor_suggested: Classification | None = None,
 ) -> Application:
     """Upraví existující záznam; audit nese jen názvy změněných polí (R5.9).
 
@@ -233,10 +285,18 @@ def update_application(
             changed_fields.append(field)
 
     # Klasifikace: přes jediného zapisovače, ne přiřazením (R6.1). Do
-    # changed_fields se nezapočítává — má vlastní log i audit.
-    if form.classification is not None:
-        if application.classification != str(form.classification):
-            set_classification(session, application, actor, form.classification)
+    # changed_fields se nezapočítává — má vlastní log i audit. Zapíše se jen
+    # při skutečné změně hodnoty; zdroj (HUMAN / AI / AI_OVERRIDDEN) rozhodne
+    # helper podle případného doporučení poradce (classification-advisor R3).
+    if form.classification is not None and application.classification != str(form.classification):
+        _write_form_classification(
+            session,
+            application,
+            actor,
+            form,
+            advisor_suggestion_id=advisor_suggestion_id,
+            advisor_suggested=advisor_suggested,
+        )
 
     audit.app_updated(
         session,

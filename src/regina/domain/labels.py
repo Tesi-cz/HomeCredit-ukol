@@ -70,6 +70,8 @@ LIFECYCLE_STATE_LABELS: dict[LifecycleState, str] = {
 
 CLASSIFICATION_SOURCE_LABELS: dict[ClassificationSource, str] = {
     ClassificationSource.HUMAN: "Člověk",
+    ClassificationSource.AI: "Návrh AI",
+    ClassificationSource.AI_OVERRIDDEN: "Návrh AI upraven",
     ClassificationSource.ADMIN_OVERRIDE: "Přepis správce",
 }
 
@@ -98,6 +100,44 @@ AUDIT_ACTION_LABELS: dict[AuditAction, str] = {
     AuditAction.ROLE_CHANGED: "Změna role",
     AuditAction.ACCESS_DENIED: "Zamítnutý přístup",
 }
+
+
+#: Popisky technických kódů logu volání modelu (classification-advisor R6.3).
+#: Nejsou to členy výčtu z `enums.py` (patří vrstvě `llm`/`db`, ne doméně
+#: jádra), proto jde o prosté mapy kód → český text. Admin výpis logu je čte,
+#: aby nezobrazoval strojové kódy (R13.11).
+LLM_GATEWAY_IMPL_LABELS: dict[str, str] = {
+    "OPENROUTER": "OpenRouter",
+    "MOCK": "Mock (bez sítě)",
+    "AI_GATEWAY": "Firemní AI Gateway",
+}
+
+LLM_OPERATION_LABELS: dict[str, str] = {
+    "CLASSIFY": "Klasifikace",
+    "REWRITE": "Úprava popisu",
+    "TRANSCRIBE": "Přepis řeči",
+}
+
+LLM_STATUS_LABELS: dict[str, str] = {
+    "SUCCESS": "Úspěch",
+    "TIMEOUT": "Vypršel čas",
+    "ERROR": "Chyba",
+}
+
+
+def llm_gateway_impl_label(code: str) -> str:
+    """Český popisek implementace brány; neznámý kód projde beze změny."""
+    return LLM_GATEWAY_IMPL_LABELS.get(code, code)
+
+
+def llm_operation_label(code: str) -> str:
+    """Český popisek operace volání modelu; neznámý kód projde beze změny."""
+    return LLM_OPERATION_LABELS.get(code, code)
+
+
+def llm_status_label(code: str) -> str:
+    """Český popisek stavu volání modelu; neznámý kód projde beze změny."""
+    return LLM_STATUS_LABELS.get(code, code)
 
 
 #: Sjednocené vyhledání pro `label()`. Klíčem je člen výčtu (`StrEnum` má

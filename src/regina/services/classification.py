@@ -91,6 +91,7 @@ def write_classification(
     actor: AuditActor,
     source: ClassificationSource,
     reason: str | None = None,
+    suggestion_id: int | None = None,
 ) -> ClassificationLog:
     """Zapíše klasifikaci aplikace — jediné místo, které mění ``classification``.
 
@@ -114,10 +115,15 @@ def write_classification(
         new_classification: nová platná klasifikace.
         actor: osoba provádějící zápis (``id``, ``email``, ``name`` pro audit a
             ``actor_user_id`` v logu).
-        source: zdroj zápisu — ``HUMAN`` běžný zápis, ``ADMIN_OVERRIDE`` přepis
-            správcem (rozšiřitelné o zdroje poradce, database.md 9).
+        source: zdroj zápisu — ``HUMAN`` běžný zápis, ``AI`` / ``AI_OVERRIDDEN``
+            přijetí návrhu poradce, ``ADMIN_OVERRIDE`` přepis správcem
+            (database.md 9).
         reason: důvod. U ``ADMIN_OVERRIDE`` povinný a neprázdný; jinak se
             neukládá (drží se pravidlo „důvod smí mít jen přepis").
+        suggestion_id: nepovinný odkaz na doporučení poradce
+            (``classification_suggestions.id``), které zápis vyvolalo. Vyplněný
+            u ``AI`` / ``AI_OVERRIDDEN``, prázdný jinak (classification-advisor
+            R3.9). Existující chování a audit se jím nemění.
 
     Vyvolá:
         ValueError: u ``ADMIN_OVERRIDE`` s prázdným nebo jen bílým důvodem —
@@ -152,6 +158,7 @@ def write_classification(
         source=str(source),
         reason=stored_reason,
         actor_user_id=actor.id,
+        suggestion_id=suggestion_id,
     )
     session.add(log_entry)
 
@@ -265,4 +272,46 @@ def override_classification(
         actor,
         ClassificationSource.ADMIN_OVERRIDE,
         reason=reason,
+    )
+
+
+def set_classification_from_suggestion(
+    session: Session,
+    application: Application,
+    actor: AuditActor,
+    chosen_classification: Classification,
+    suggested_classification: Classification,
+    suggestion_id: int,
+) -> ClassificationLog:
+    """Zápis klasifikace po přijetí návrhu poradce (classification-advisor R3.5, R3.6).
+
+    Vstupní bod pro webovou vrstvu, když uživatel přijal doporučení z AI panelu.
+    Zdroj se odvodí porovnáním zvolené a navržené úrovně:
+
+    - shoda → ``AI`` (přijal beze změny, R3.5),
+    - rozdíl → ``AI_OVERRIDDEN`` (návrh viděl, zvolil jinou úroveň, R3.6).
+
+    Odkaz na doporučení (``suggestion_id``) se uloží do ``classification_log``,
+    aby detail mohl ukázat, že klasifikace pochází z návrhu modelu (R3.9).
+
+    Stejně jako ``set_classification`` jde přes jediného zapisovače
+    ``write_classification`` — transakční invariant i audit (``CLASSIFICATION_SET``)
+    zůstávají beze změny (R3.8). Oprávnění „člen trojice, nebo Admin" vynucuje
+    HTTP guard stejně jako u ručního zápisu (R3.10); tato funkce ho
+    nepředpokládá řešit, řeší jen zdroj a odkaz.
+
+    Důvod se u AI zdrojů neukládá — je vyhrazený jen přepisu správcem.
+    """
+    source = (
+        ClassificationSource.AI
+        if chosen_classification == suggested_classification
+        else ClassificationSource.AI_OVERRIDDEN
+    )
+    return write_classification(
+        session,
+        application,
+        chosen_classification,
+        actor,
+        source,
+        suggestion_id=suggestion_id,
     )

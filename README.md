@@ -22,6 +22,7 @@ ovládacích prvků v rozhraní.
 - [Spuštění na jeden příkaz](#spuštění-na-jeden-příkaz)
 - [Demo účty](#demo-účty)
 - [Použitý model a Master Prompt](#použitý-model-a-master-prompt)
+- [AI funkce](#ai-funkce)
 - [Klasifikace samotné REGINY](#klasifikace-samotné-reginy)
 - [Retenční lhůty](#retenční-lhůty)
 - [Záměna poskytovatele identity za Microsoft Entra ID](#záměna-poskytovatele-identity-za-microsoft-entra-id)
@@ -150,17 +151,28 @@ logy. Účet **Petr Svoboda** ukazuje pohled běžného uživatele včetně rež
 
 ### Model uvnitř aplikace
 
-Jádro evidence (tato část, specifikace `app-registry-core`) **nevolá za běhu
-žádný jazykový model**. V kódu není žádné volání modelu, žádná abstrakční vrstva
-pro něj ani log jeho volání. Pole „použitý AI model" u záznamu je údaj, který
-o evidované aplikaci zadává člověk — není to model, který by používala samotná
-REGINA.
+REGINA volá jazykový model ve dvou funkcích (specifikace `classification-advisor`):
+**klasifikační poradce** (návrh úrovně z dotazníku + zdůvodnění) a **AI úprava
+popisu**. Obě popisuje sekce [AI funkce](#ai-funkce).
 
-Automatický návrh klasifikace jazykovým modelem (dotazník, doporučení + jeho
-zdůvodnění, zaměnitelná abstrakční vrstva pro volání modelu, anonymizace
-osobních údajů před zpracováním a log volání modelu bez obsahu promptu) je
-vědomě oddělený do navazující specifikace `classification-advisor`. Důvod a
-rozsah tohoto rozdělení jsou popsané v sekci [vědomého dluhu](#vědomý-dluh).
+- **Poskytovatel (výchozí):** [OpenRouter](https://openrouter.ai)
+- **Model (výchozí):** `deepseek/deepseek-v4-flash`
+- **Kde se nastaví:** proměnné `LLM_*` v `.env` (viz `.env.example`). Model ani
+  poskytovatel nejsou napevno v kódu.
+
+Volání jde **výhradně přes vlastní abstrakční vrstvu** (`src/regina/llm/`) — ani
+jedna funkce nevolá veřejné API modelu přímo. Poskytovatel je proto zaměnitelný
+za firemní AI Gateway pouhou změnou konfigurace (`LLM_BASE_URL`, `LLM_MODEL`),
+bez zásahu do kódu.
+
+**API klíč je nepovinný.** Bez `OPENROUTER_API_KEY` aplikace **naběhne stejně**
+a poradce běží v **mock / deterministickém režimu** (návrh z bodového skóre bez
+volání sítě, úprava popisu jen lehce normalizuje text). Reálný klíč patří jen do
+lokálního `.env` (v `.gitignore`), nikdy do kódu, image ani repozitáře. Klíč se
+získá na <https://openrouter.ai/keys>.
+
+Pole „použitý AI model" u záznamu je něco jiného — je to údaj o **evidované
+aplikaci**, který zadává člověk, ne model používaný samotnou REGINOU.
 
 ### Master Prompt
 
@@ -187,6 +199,57 @@ prompty pro jednotlivé kroky jsou ve složce [`prompts/`](prompts/):
 Autoritativními pracovními prompty byly samotné specifikační dokumenty v
 `.kiro/specs/app-registry-core/`. Schválené vizuální mocky jsou verzované v
 [`design/mocks/`](design/mocks/).
+
+---
+
+## AI funkce
+
+REGINA používá jazykový model ve dvou místech. Obě volají model **výhradně přes
+vlastní abstrakční vrstvu** (`src/regina/llm/`), obě **anonymizují osobní údaje**
+před odesláním a obě zapisují **technický log volání bez obsahu**. Obě fungují
+i **bez API klíče** (mock / deterministický režim).
+
+### 1) Klasifikační poradce
+
+Ve formuláři aplikace je panel „Poradce klasifikace" se šesti otázkami
+(dimenzemi):
+
+1. počet uživatelů,
+2. citlivost zpracovávaných dat,
+3. byznys kritičnost,
+4. integrační složitost,
+5. regulatorní dopad,
+6. míra použití AI.
+
+Každá odpověď nese body (1–3). Z jejich součtu (6–18) vznikne **deterministická
+baseline** úroveň (6–9 → `MALÁ`, 10–13 → `STŘEDNÍ`, 14–18 → `VELKÁ`). Model přes
+abstrakci dodá **české zdůvodnění**; panel ukáže navrženou úroveň, zdůvodnění a
+rozpad bodů po dimenzích. Uživatel návrh **přijme** (zdroj `AI`), přijme s jinou
+úrovní (`AI_OVERRIDDEN`), nebo ho ignoruje a zvolí ručně (`HUMAN`).
+
+Zápis klasifikace jde **vždy** přes jediného zapisovače
+(`services/classification.py`) se stejným transakčním invariantem a autorizací
+na backendu jako ruční zápis. Odkaz na doporučení se uloží do historie
+klasifikace. Když model není dostupný nebo selže, poradce vrátí **deterministický
+návrh označený jako záložní** — nikdy nespadne.
+
+### 2) AI úprava popisu
+
+U pole „Popis" je tlačítko „AI úprava". Přepíše zadaný popis do kultivovanějšího
+českého znění. Výsledek je **návrh** — uživatel ho převezme (nahradí pole) nebo
+zahodí; nikam se automaticky neukládá a uloží se až s celým formulářem. Při
+chybě modelu zůstává původní popis beze změny (nezávazná chyba).
+
+### Anonymizace a log volání
+
+- **Anonymizace.** Před odesláním modelu se v textu (poznámka poradce, popis)
+  nahradí **jméno, e-mail a telefon** zástupným symbolem (`[[JMENO_1]]`,
+  `[[EMAIL_1]]`, `[[TEL_1]]`); po návratu se vrátí zpět. Mapování je
+  deterministické v rámci jednoho volání.
+- **Log volání** (jen role Admin, obrazovka „Volání AI" / `/volani-ai`). Ukládá
+  se **implementace, model, operace, počty tokenů, latence, stav a čas** —
+  **nikdy obsah promptu ani odpovědi** (v tabulce `llm_call_log` pro obsah
+  neexistuje sloupec). Retence logů viz [Retenční lhůty](#retenční-lhůty).
 
 ---
 
@@ -235,6 +298,8 @@ Retence má dvě kategorie:
 |---|---|---|---|
 | Auditní záznamy | **365 dní (≈ 1 rok)** | `occurred_at` (čas události) | `RETENTION_AUDIT_LOG_DAYS` |
 | Vyřazené aplikace | **730 dní (≈ 2 roky)** | `decommissioned_at` (čas vyřazení) | `RETENTION_DECOMMISSIONED_APP_DAYS` |
+| Logy volání modelu | **90 dní (≈ 3 měsíce)** | `occurred_at` (čas volání) | `RETENTION_LLM_CALL_LOG_DAYS` |
+| Doporučení poradce | **180 dní (≈ 6 měsíců)** | `created_at` (čas vzniku) | `RETENTION_SUGGESTION_DAYS` |
 
 Interval běhu je **24 hodin** (`RETENTION_INTERVAL_HOURS`) — po startu se úloha
 spustí a pak se opakuje jednou denně.
@@ -250,6 +315,14 @@ spustí a pak se opakuje jednou denně.
   historie), pak už záznam nemá důvod trvat. Hranice se **vždy počítá od
   `decommissioned_at`** (okamžiku vyřazení), nikdy od času poslední úpravy —
   editace vyřazeného záznamu jeho retenci neprodlouží.
+- **Logy volání modelu — ≈ 3 měsíce.** Slouží jen k přehledu o využití a
+  nákladech; neobsahují osobní údaje ani obsah. Krátká lhůta stačí na provozní
+  přehled a drží databázi štíhlou.
+- **Doporučení poradce — ≈ 6 měsíců.** Uchovávají odpovědi dotazníku a
+  zdůvodnění po dobu, kdy dává smysl dohledat, proč záznam dostal danou úroveň.
+  Smazání doporučení **nikdy neutrhne historii klasifikace** — vazba
+  `classification_log.suggestion_id` je `ON DELETE SET NULL`, takže se jen
+  vynuluje odkaz a nemazatelná historie zůstává.
 
 ### Co se maže a co zůstává
 
@@ -345,33 +418,26 @@ Co v tomto rozsahu **vědomě není** a proč. Každá položka uvádí, co chyb
 je to teď přijatelné a jak by vypadalo skutečné řešení. Cílem je, aby bylo
 vidět rozhodnutí, ne opomenutí.
 
-### Klasifikační našeptávač (odloženo do specifikace `classification-advisor`)
+### Návrh úrovně od modelu vychází z deterministické baseline
 
-Největší vědomé rozdělení. Automatický **návrh klasifikace jazykovým modelem**
-je celý oddělený do navazující specifikace `classification-advisor`. Konkrétně
-sem patří:
+Klasifikační poradce ([AI funkce](#ai-funkce)) **je implementovaný** — dotazník,
+doporučení se zdůvodněním, zaměnitelná abstrakce, anonymizace i log volání bez
+obsahu. Jedno vědomé zjednodušení: **navrženou úroveň drží deterministické
+bodové skóre**, model dodává jen slovní zdůvodnění (nepřepisuje úroveň z vlastní
+úvahy). **Proč:** bodová baseline je stabilní, obhajitelná a testovatelná — nemůže
+kolísat mezi voláními ani „ujet" k nesmyslu, a zůstává srozumitelná i v mock
+režimu bez klíče. **Skutečné řešení, kdyby se úroveň měla brát od modelu:** nechat
+model vrátit i úroveň, validovat ji proti povoleným hodnotám a při rozporu s
+baseline ukázat obojí; je to aditivní změna ve `services/advisor.py` bez dopadu
+na zápis klasifikace.
 
-- **dotazník a doporučení modelu s jeho zdůvodněním** — aplikace se uživatele
-  zeptá a sama navrhne úroveň `MALÁ` / `STŘEDNÍ` / `VELKÁ` i s odůvodněním,
-- **zaměnitelná abstrakční vrstva pro volání modelu** — rozhraní, za které se dá
-  bez zásahu do aplikačního kódu podložit firemní AI Gateway místo veřejného
-  poskytovatele,
-- **anonymizace osobních údajů před zpracováním** — nahrazení jména, e-mailu a
-  telefonu zástupným symbolem před odesláním do modelu a jejich vrácení po
-  zpracování,
-- **log volání modelu** — model, čas a počet tokenů, **bez obsahu promptu** a
-  bez přepisu.
+### Návrh klasifikace nečte úroveň z textu modelu
 
-**Proč je to oddělené a ne vynechané.** Zadání našeptávač vyžaduje; toto rozdělení
-je pořadí práce, ne krácení rozsahu. Jádro registru (tato část,
-`app-registry-core`) je **kompletní a použitelné i bez něj** — klasifikaci dnes
-vždy zadává člověk (zdroj `HUMAN`, u zásahu správce `ADMIN_OVERRIDE`) a v kódu
-**neběží žádný jazykový model**: žádné volání modelu, žádná abstrakční vrstva
-pro něj ani log jeho volání. Rozdělení drží jádro odevzdatelné a udržuje LLM
-starost čistě izolovanou za vlastní abstrakcí, přesně jak zadání požaduje.
-Návrh je záměrně připravený tak, aby ho našeptávač doplnil **aditivně** — podpis
-funkce `write_classification` se nemění, přidá se jen nepovinný odkaz na
-doporučení (viz `design.md` sekce 15).
+Panel poradce ukáže zdůvodnění od modelu, ale tlačítko „Použít" předvyplní
+**baseline** úroveň (viz výše). **Proč je to teď přijatelné:** uživatel může
+úroveň v poli klasifikace kdykoli ručně změnit a zápis to korektně zaznamená jako
+`AI_OVERRIDDEN`. **Skutečné řešení:** viz předchozí bod — parsovat úroveň z
+odpovědi modelu.
 
 ### Přesná verze modelu je zatím zástupná
 

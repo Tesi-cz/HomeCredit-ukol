@@ -143,7 +143,12 @@ def test_logs_category_cutoff_and_count_per_category(settings, monkeypatch, capl
     ]
     by_category = {r.category: r for r in records}
 
-    assert set(by_category) == {"audit_log", "decommissioned_applications"}
+    assert set(by_category) == {
+        "audit_log",
+        "decommissioned_applications",
+        "llm_call_log",
+        "classification_suggestions",
+    }
 
     audit = by_category["audit_log"]
     assert audit.deleted == 3
@@ -155,6 +160,20 @@ def test_logs_category_cutoff_and_count_per_category(settings, monkeypatch, capl
     assert apps.deleted == 2
     assert apps.cutoff == (
         now - timedelta(days=settings.retention_decommissioned_app_days)
+    ).isoformat()
+
+    # Kategorie poradce (classification-advisor R7.2). Fake session vrací 2
+    # pro každou tabulku mimo audit_log.
+    llm_calls = by_category["llm_call_log"]
+    assert llm_calls.deleted == 2
+    assert llm_calls.cutoff == (
+        now - timedelta(days=settings.retention_llm_call_log_days)
+    ).isoformat()
+
+    suggestions = by_category["classification_suggestions"]
+    assert suggestions.deleted == 2
+    assert suggestions.cutoff == (
+        now - timedelta(days=settings.retention_suggestion_days)
     ).isoformat()
 
 
@@ -186,7 +205,8 @@ def test_logs_even_when_nothing_deleted(settings, monkeypatch, caplog) -> None:
     records = [
         r for r in caplog.records if getattr(r, "event", None) == "retention.category_completed"
     ]
-    assert len(records) == 2
+    # Čtyři kategorie: audit, vyřazené aplikace, logy volání, doporučení.
+    assert len(records) == 4
     assert all(r.deleted == 0 for r in records)
 
 

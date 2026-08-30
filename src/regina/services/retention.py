@@ -53,6 +53,8 @@ from regina.db import audit_guard
 from regina.db import session as db_session
 from regina.db.models.applications import Application
 from regina.db.models.audit_log import AuditLog
+from regina.db.models.classification_suggestion import ClassificationSuggestion
+from regina.db.models.llm_call_log import LLMCallLog
 from regina.logging import get_logger
 
 logger = get_logger("regina.retention")
@@ -71,6 +73,11 @@ class RetentionResult:
     apps_deleted: int
     audit_cutoff: datetime
     apps_cutoff: datetime
+    # Kategorie poradce (classification-advisor R7).
+    llm_calls_deleted: int = 0
+    suggestions_deleted: int = 0
+    llm_calls_cutoff: datetime | None = None
+    suggestions_cutoff: datetime | None = None
 
 
 def run_retention_once(settings: Settings, *, now: datetime | None = None) -> RetentionResult:
@@ -91,10 +98,17 @@ def run_retention_once(settings: Settings, *, now: datetime | None = None) -> Re
     reference = now or datetime.now(UTC)
     audit_cutoff = reference - timedelta(days=settings.retention_audit_log_days)
     apps_cutoff = reference - timedelta(days=settings.retention_decommissioned_app_days)
+    llm_calls_cutoff = reference - timedelta(days=settings.retention_llm_call_log_days)
+    suggestions_cutoff = reference - timedelta(days=settings.retention_suggestion_days)
 
     with db_session.session_scope() as session:
         audit_deleted = _delete_expired_audit(session, audit_cutoff)
         apps_deleted = _delete_expired_decommissioned_apps(session, apps_cutoff)
+        # Kategorie poradce (classification-advisor R7.2). Mazání nese
+        # `ON DELETE SET NULL` na vazbách, takže úklid technických dat nikdy
+        # neutrhne historii klasifikace ani nespadne na cizím klíči (R7.3).
+        llm_calls_deleted = _delete_expired_llm_calls(session, llm_calls_cutoff)
+        suggestions_deleted = _delete_expired_suggestions(session, suggestions_cutoff)
 
     _log_run(
         category="audit_log",
@@ -108,12 +122,28 @@ def run_retention_once(settings: Settings, *, now: datetime | None = None) -> Re
         cutoff=apps_cutoff,
         deleted=apps_deleted,
     )
+    _log_run(
+        category="llm_call_log",
+        category_label="Logy volání modelu",
+        cutoff=llm_calls_cutoff,
+        deleted=llm_calls_deleted,
+    )
+    _log_run(
+        category="classification_suggestions",
+        category_label="Doporučení poradce",
+        cutoff=suggestions_cutoff,
+        deleted=suggestions_deleted,
+    )
 
     return RetentionResult(
         audit_deleted=audit_deleted,
         apps_deleted=apps_deleted,
         audit_cutoff=audit_cutoff,
         apps_cutoff=apps_cutoff,
+        llm_calls_deleted=llm_calls_deleted,
+        suggestions_deleted=suggestions_deleted,
+        llm_calls_cutoff=llm_calls_cutoff,
+        suggestions_cutoff=suggestions_cutoff,
     )
 
 
@@ -167,6 +197,33 @@ def _delete_expired_decommissioned_apps(session: Session, cutoff: datetime) -> i
     statement = delete(Application).where(
         Application.lifecycle_state == "DECOMMISSIONED",
         Application.decommissioned_at < cutoff,
+    )
+    result = session.execute(statement)
+    return result.rowcount or 0
+
+
+def _delete_expired_llm_calls(session: Session, cutoff: datetime) -> int:
+    """Smaže logy volání modelu s `occurred_at < cutoff` (classification-advisor R7.2).
+
+    Log neobsahuje osobní údaje (R6.2), přesto se maže — držíme jen to, co je
+    potřeba pro přehled o nákladech. Vazba `classification_suggestions.llm_call_id`
+    je `ON DELETE SET NULL`, takže smazání logu jen vynuluje odkaz z doporučení,
+    nic neutrhne (R7.3).
+    """
+    statement = delete(LLMCallLog).where(LLMCallLog.occurred_at < cutoff)
+    result = session.execute(statement)
+    return result.rowcount or 0
+
+
+def _delete_expired_suggestions(session: Session, cutoff: datetime) -> int:
+    """Smaže doporučení poradce s `created_at < cutoff` (classification-advisor R7.2).
+
+    Vazba `classification_log.suggestion_id` je `ON DELETE SET NULL`, takže
+    smazání doporučení jen vynuluje odkaz z historie klasifikace — nemazatelná
+    historie zůstává (R7.3).
+    """
+    statement = delete(ClassificationSuggestion).where(
+        ClassificationSuggestion.created_at < cutoff
     )
     result = session.execute(statement)
     return result.rowcount or 0

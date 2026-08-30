@@ -1,0 +1,68 @@
+{% from "components/pagination.html" import pagination_bar %}
+{% from "components/empty_state.html" import empty_state %}
+
+{#
+  Výsledky obrazovky Volání AI (tabulka + stránkování + prázdný stav).
+  Vyčleněno do partialu, aby ho šlo vykreslit samostatně pro živé překreslování
+  (fragment endpoint `GET /volani-ai/fragment`). Nezávisí na `base.html`.
+
+  Vstupy z kontextu (stejné pro stránku i fragment): `entries` (řádky
+  llm_call_log), `pagination`, `request`. Bez obsahu volání (R6.2).
+#}
+
+{% if entries %}
+<div class="overflow-hidden rounded-lg border border-border-gray bg-white">
+  <div>
+    <table class="w-full border-collapse text-left text-body">
+      <thead class="bg-white">
+        <tr class="border-b border-border-gray text-caption uppercase tracking-wide text-gray-light">
+          <th scope="col" class="px-lg py-md font-bold">Čas</th>
+          <th scope="col" class="px-lg py-md font-bold">Implementace</th>
+          <th scope="col" class="px-lg py-md font-bold">Operace</th>
+          <th scope="col" class="px-lg py-md font-bold">Model</th>
+          <th scope="col" class="px-lg py-md font-bold">Tokeny</th>
+          <th scope="col" class="px-lg py-md font-bold">Latence</th>
+          <th scope="col" class="px-lg py-md font-bold">Stav</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for zaznam in entries %}
+        <tr class="border-b border-border-gray/60 {% if loop.index0 is odd %}bg-bg-warm{% endif %}">
+          <td class="whitespace-nowrap px-lg py-md text-dark">{{ zaznam.occurred_at | datum_cas }}</td>
+          <td class="px-lg py-md text-dark">{{ llm_gateway_impl_label(zaznam.gateway_impl) }}</td>
+          <td class="px-lg py-md text-dark">{{ llm_operation_label(zaznam.operation) }}</td>
+          <td class="px-lg py-md text-dark">{{ zaznam.model }}</td>
+          {# Tokeny: vstup/výstup; mock je nezná → pomlčka. #}
+          <td class="whitespace-nowrap px-lg py-md text-dark">
+            {% if zaznam.tokens_in is not none or zaznam.tokens_out is not none %}
+            {{ zaznam.tokens_in if zaznam.tokens_in is not none else "—" }}&nbsp;/&nbsp;{{ zaznam.tokens_out if zaznam.tokens_out is not none else "—" }}
+            {% else %}
+            <span class="text-gray-light">—</span>
+            {% endif %}
+          </td>
+          <td class="whitespace-nowrap px-lg py-md text-dark">{{ zaznam.latency_ms }}&nbsp;ms</td>
+          {# Stav jako český popisek; chyba/timeout zvýrazněné červeně. #}
+          <td class="px-lg py-md">
+            {% if zaznam.status == "SUCCESS" %}
+            <span class="text-dark">{{ llm_status_label(zaznam.status) }}</span>
+            {% else %}
+            <span class="font-bold text-hc-red">{{ llm_status_label(zaznam.status) }}</span>
+            {% if zaznam.error_code %}
+            <span class="block text-caption text-gray-light">{{ zaznam.error_code }}</span>
+            {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {{ pagination_bar(pagination, request) }}
+</div>
+{% else %}
+{{ empty_state(
+    nadpis="Zatím žádná volání modelu",
+    popis="Jakmile poradce nebo úprava popisu zavolá model, objeví se tu technický záznam."
+) }}
+{% endif %}

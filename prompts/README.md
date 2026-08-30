@@ -19,6 +19,8 @@ toto pořadí.
 | `30-rozhrani.md` | Prompt, kterým vznikl `ui.md` (inventář obrazovek odvozený ze schválených mocků). |
 | `40-databaze.md` | Prompt, kterým vznikl `database.md` (datový model, constrainty, indexy). |
 | `50-plan-a-implementace.md` | Prompt, kterým vznikl `tasks.md` a podle kterého probíhala implementace po svislých řezech. |
+| `60-poradce-klasifikace.md` | **Runtime prompt** posílaný modelu při návrhu klasifikace (funkce poradce, spec `classification-advisor`). |
+| `70-uprava-popisu.md` | **Runtime prompt** posílaný modelu při AI úpravě popisu aplikace (spec `classification-advisor`). |
 
 ## Kde jsou autoritativní verze
 
@@ -27,5 +29,9 @@ v repozitáři a jsou verzované:
 
 - Zadání: `Domácí_úkol_—_AI_Implementation_Expert_(zadání).md` v kořeni repozitáře
 - Specifikace: `.kiro/specs/app-registry-core/` (`requirements.md`, `design.md`,
-  `ui.md`, `database.md`, `tasks.md`)
+  `ui.md`, `database.md`, `tasks.md`) a `.kiro/specs/classification-advisor/`
+  (`requirements.md`, `design.md`, `database.md`, `tasks.md`) pro AI funkce
+- Runtime prompty AI funkcí: `CLASSIFY_SYSTEM_PROMPT` v
+  `src/regina/services/advisor.py` a `REWRITE_SYSTEM_PROMPT` v
+  `src/regina/services/description_rewrite.py`
 - Schválené mocky: `design/mocks/`

@@ -71,11 +71,15 @@ class Classification(StrEnum):
 class ClassificationSource(StrEnum):
     """Zdroj zápisu klasifikace — `classification_log.source` (database.md 7).
 
-    Rozšiřitelný výčet (database.md 9): poradce později doplní `AI` a
-    `AI_OVERRIDDEN`. Jádro nikde nepředpokládá, že jsou hodnoty právě dvě.
+    Rozšiřitelný výčet (database.md 9). Poradce (`classification-advisor`)
+    doplnil `AI` (uživatel přijal návrh modelu beze změny úrovně) a
+    `AI_OVERRIDDEN` (návrh viděl, ale zvolil jinou úroveň). Jádro nikde
+    nepředpokládá, že jsou hodnoty právě dvě.
     """
 
     HUMAN = "HUMAN"
+    AI = "AI"
+    AI_OVERRIDDEN = "AI_OVERRIDDEN"
     ADMIN_OVERRIDE = "ADMIN_OVERRIDE"
 
 

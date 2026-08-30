@@ -166,16 +166,31 @@
               {{ field_errors(fields.FIELD_NAME) }}
             </div>
 
-            {# Popis — nepovinný. #}
-            <div>
-              <label for="pole-popis" class="mb-xs block text-caption font-bold text-dark">Popis</label>
+            {# Popis — nepovinný. Vedle popisku tlačítko AI úpravy (R4.1):
+               přepíše zadaný text do kultivovanějšího znění. Bez JS zůstává
+               popis běžné textové pole. #}
+            <div data-rewrite="/registr/uprava-popisu">
+              <div class="mb-xs flex items-center justify-between gap-sm">
+                <label for="pole-popis" class="block text-caption font-bold text-dark">Popis</label>
+                <button
+                  type="button"
+                  class="hidden items-center gap-xs rounded-md border border-border-gray px-sm py-1 text-caption text-navy transition-colors hover:bg-bg-warm"
+                  data-rewrite-trigger
+                >
+                  <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#ai"></use></svg>
+                  <span>AI úprava</span>
+                </button>
+              </div>
               <textarea
                 id="pole-popis"
                 name="{{ fields.FIELD_DESCRIPTION }}"
                 rows="3"
                 class="{{ input_classes(fields.FIELD_DESCRIPTION) }}"
+                data-rewrite-input
               >{{ values.get(fields.FIELD_DESCRIPTION, '') }}</textarea>
               {{ field_errors(fields.FIELD_DESCRIPTION) }}
+              {# Sem JS vloží návrh přepisu (fragment `_rewrite_result.html`). #}
+              <div class="mt-sm" data-rewrite-result aria-live="polite"></div>
             </div>
 
             {# Útvar — povinný, z konfigurace (jeden zdroj). #}
@@ -265,6 +280,7 @@
                   id="pole-klasifikace"
                   name="{{ fields.FIELD_CLASSIFICATION }}"
                   class="{{ input_classes(fields.FIELD_CLASSIFICATION) }}"
+                  data-classification-select
                 >
                   <option value="" {% if not values.get(fields.FIELD_CLASSIFICATION) %}selected{% endif %}>{{ NO_CLASSIFICATION_LABEL }}</option>
                   {% for klasifikace in classifications %}
@@ -272,13 +288,70 @@
                   {% endfor %}
                 </select>
                 {{ field_errors(fields.FIELD_CLASSIFICATION) }}
+                {# Skrytá pole pro zápis se zdrojem AI. JS je vyplní při převzetí
+                   návrhu; prázdná = zápis proběhne jako HUMAN (ruční volba).
+                   Zápis a autorizaci řeší až uložení formuláře na backendu. #}
+                <input type="hidden" name="advisor_suggestion_id" value="" data-advisor-suggestion-id>
+                <input type="hidden" name="advisor_suggested" value="" data-advisor-suggested>
               </div>
             </div>
 
-            {# Vyhrazené místo pro budoucí AI panel (ui.md sekce 6). #}
-            <aside class="hidden rounded-md border border-dashed border-border-input bg-bg-warm p-lg desktop:block" aria-hidden="true">
-              <p class="text-caption font-bold text-gray-light">Doporučení klasifikace</p>
-              <p class="mt-sm text-caption text-gray-light">Zde později přibude panel s doporučením klasifikace, jeho zdůvodněním a mírou důvěry.</p>
+            {# AI poradce klasifikace (classification-advisor R2, R3). Dotazník
+               šesti dimenzí; tlačítko pošle odpovědi na `/registr/poradce`,
+               vrácený fragment nahradí panel doporučení. Bez JS je to jen
+               statická nápověda — klasifikaci lze zvolit ručně vlevo. #}
+            <aside
+              class="rounded-md border border-border-gray bg-bg-warm p-lg"
+              data-advisor="/registr/poradce"
+            >
+              <div class="mb-sm flex items-center gap-sm">
+                <svg class="h-5 w-5 text-navy" aria-hidden="true"><use href="/static/icons/icons.svg#ai"></use></svg>
+                <p class="text-caption font-bold text-dark">Poradce klasifikace</p>
+              </div>
+              <p class="mb-md text-caption text-gray-light">Odpovězte na šest otázek a nechte si navrhnout klasifikaci se zdůvodněním.</p>
+
+              <div class="space-y-sm">
+                {% for otazka in advisor_questions %}
+                <div>
+                  <label for="dim-{{ otazka.dimension }}" class="mb-xs block text-caption font-bold text-dark">{{ otazka.title }}</label>
+                  <select
+                    id="dim-{{ otazka.dimension }}"
+                    name="dim_{{ otazka.dimension }}"
+                    class="h-9 w-full rounded-md border border-border-input bg-white px-sm text-caption text-dark"
+                    data-advisor-answer
+                  >
+                    <option value="">— vyberte —</option>
+                    {% for odpoved in otazka.answers %}
+                    <option value="{{ odpoved.code }}">{{ odpoved.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% endfor %}
+
+                <div>
+                  <label for="poradce-poznamka" class="mb-xs block text-caption font-bold text-dark">Poznámka (nepovinné)</label>
+                  <textarea
+                    id="poradce-poznamka"
+                    name="poradce_poznamka"
+                    rows="2"
+                    placeholder="Krátce doplňte kontext aplikace."
+                    class="w-full rounded-md border border-border-input bg-white px-sm py-1 text-caption text-dark"
+                    data-advisor-note
+                  ></textarea>
+                </div>
+
+                <button
+                  type="button"
+                  class="hidden h-9 w-full items-center justify-center gap-sm rounded-md bg-hc-yellow px-md font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+                  data-advisor-trigger
+                >
+                  <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#ai"></use></svg>
+                  <span>Navrhnout klasifikaci</span>
+                </button>
+              </div>
+
+              {# Sem JS vloží panel doporučení (fragment `_advisor_panel.html`). #}
+              <div class="mt-md" data-advisor-result aria-live="polite"></div>
             </aside>
           </div>
         </section>
@@ -304,5 +377,9 @@
   <footer class="border-t border-border-gray bg-white px-lg py-md text-center text-caption text-gray-light">
     <p>© Home Credit International</p>
   </footer>
+
+  {# AI funkce formuláře (poradce klasifikace, úprava popisu). Wizard nedědí
+     z base.html, proto se skript přidává přímo sem (classification-advisor). #}
+  <script src="/static/js/advisor.js" defer></script>
 </body>
 </html>

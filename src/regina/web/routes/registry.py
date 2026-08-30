@@ -56,7 +56,7 @@ from regina.auth.deps import (
 from regina.db.models.applications import Application
 from regina.db.models.classification_log import ClassificationLog
 from regina.db.models.users import User
-from regina.domain import rules
+from regina.domain import questionnaire, rules
 from regina.domain.enums import (
     Classification,
     ClassificationSource,
@@ -470,6 +470,8 @@ def _wizard_context(
         departments=settings.departments,
         lifecycle_states=_lifecycle_choices(is_admin),
         classifications=tuple(Classification),
+        # Otázky poradce klasifikace do AI panelu formuláře (classification-advisor R2).
+        advisor_questions=questionnaire.QUESTIONS,
         values=values,
         errors=errors or {},
         fields=forms,
@@ -521,6 +523,28 @@ async def _read_form(request: Request) -> dict[str, str]:
 FormDataDep = Annotated[dict[str, str], Depends(_read_form)]
 
 
+def _advisor_fields(raw: dict[str, str]) -> tuple[int | None, Classification | None]:
+    """Přečte z formuláře odkaz na doporučení poradce a navrženou úroveň.
+
+    Skrytá pole ``advisor_suggestion_id`` a ``advisor_suggested`` vyplní JS při
+    převzetí návrhu z AI panelu (classification-advisor R3.5, R3.6). Když
+    chybí, jsou prázdná nebo nesmyslná, vrací ``(None, None)`` a klasifikace se
+    zapíše jako ruční (``HUMAN``) — poradce je nadstavba, ne podmínka. Nesmyslné
+    hodnoty se tiše ignorují, aby ručně upravený formulář zápis neshodil; zdroj
+    pak degraduje na ``HUMAN``, což je bezpečná varianta.
+    """
+    raw_id = raw.get("advisor_suggestion_id", "").strip()
+    raw_level = raw.get("advisor_suggested", "").strip()
+    if not raw_id or not raw_level:
+        return None, None
+    try:
+        suggestion_id = int(raw_id)
+        suggested = Classification(raw_level)
+    except (ValueError, TypeError):
+        return None, None
+    return suggestion_id, suggested
+
+
 @router.post(
     "/registr/nova",
     include_in_schema=False,
@@ -560,7 +584,14 @@ def create_application_route(
     if ref_errors:
         return _rerender_wizard(request, user, session, raw=raw, errors=ref_errors)
 
-    application = create_application(session, user, form)
+    advisor_suggestion_id, advisor_suggested = _advisor_fields(raw)
+    application = create_application(
+        session,
+        user,
+        form,
+        advisor_suggestion_id=advisor_suggestion_id,
+        advisor_suggested=advisor_suggested,
+    )
     session.flush()  # Zajistí application.id pro URL detailu ještě před commitem.
 
     return redirect_with_flash(
@@ -756,8 +787,16 @@ def update_application_route(
             request, user, session, raw=raw, errors=ref_errors, **edit_kwargs
         )
 
+    advisor_suggestion_id, advisor_suggested = _advisor_fields(raw)
     try:
-        update_application(session, user, application, form)
+        update_application(
+            session,
+            user,
+            application,
+            form,
+            advisor_suggestion_id=advisor_suggestion_id,
+            advisor_suggested=advisor_suggested,
+        )
     except LifecycleTransitionError:
         # Vyřazení/návrat přes formulář je zakázané (constraint-safety, R5.12).
         # Za normálních okolností se sem nedojde (stav Vyřazená není v nabídce
