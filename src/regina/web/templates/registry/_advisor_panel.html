@@ -16,49 +16,56 @@
 #}
 
 {% if incomplete %}
-<div class="rounded-md border border-hc-red/40 bg-hc-red/10 p-md text-caption text-hc-red" role="alert">
-  Nejprve zodpovězte všechny otázky dotazníku výše, pak lze navrhnout klasifikaci.
+<div class="mt-md rounded-md border border-hc-red/40 bg-hc-red/10 p-md text-caption text-hc-red" role="alert">
+  Nejprve zodpovězte všechny otázky dotazníku, pak lze navrhnout klasifikaci.
 </div>
 {% else %}
-<div class="space-y-md">
-  {# Navržená úroveň + příznak fallbacku. #}
-  <div class="flex items-center gap-sm">
-    <span class="text-caption font-bold text-gray-light">Doporučená klasifikace</span>
-    {% if suggestion.is_fallback %}
-    <span class="rounded-pill bg-border-gray px-sm py-0.5 text-caption text-dark" title="Návrh bez jazykového modelu">záložní</span>
-    {% endif %}
+{# Kompaktní panel: úroveň + zdůvodnění + skóre jako štítky + akce vedle sebe.
+   Střídá se s dotazníkem ve stejném prostoru, takže výška kroku drží. #}
+<div class="space-y-sm">
+  {# Navržená úroveň + příznak fallbacku na jednom řádku. #}
+  <div class="flex items-center justify-between gap-sm">
+    <div class="flex items-center gap-sm">
+      <span class="font-heading text-h4 font-bold text-black">{{ classification_label(suggestion.classification) }}</span>
+      {% if suggestion.is_fallback %}
+      <span class="rounded-pill bg-border-gray px-sm py-0.5 text-caption text-dark" title="Návrh bez jazykového modelu">záložní</span>
+      {% endif %}
+    </div>
+    <span class="text-caption text-gray-light">{{ suggestion.total_score }} / {{ score_max }} b.</span>
   </div>
-  <p class="font-heading text-h4 font-bold text-black">{{ classification_label(suggestion.classification) }}</p>
 
   {# Zdůvodnění (české; od modelu nebo deterministické u fallbacku). #}
-  <p class="text-body text-dark">{{ suggestion.rationale }}</p>
+  <p class="text-caption text-dark">{{ suggestion.rationale }}</p>
 
-  {# Rozpad skóre po dimenzích — transparentnost (R3.3). #}
-  <div class="rounded-md border border-border-gray bg-white p-md">
-    <p class="mb-sm text-caption font-bold text-gray-light">Bodové hodnocení ({{ suggestion.total_score }} z {{ score_max }})</p>
-    <ul class="space-y-xs">
-      {% for row in breakdown_rows %}
-      <li class="flex items-center justify-between gap-sm text-caption text-dark">
-        <span>{{ row.title }}</span>
-        <span class="font-bold">{{ row.score }}</span>
-      </li>
-      {% endfor %}
-    </ul>
+  {# Rozpad skóre po dimenzích jako kompaktní štítky (transparentnost, R3.3). #}
+  <div class="flex flex-wrap gap-xs">
+    {% for row in breakdown_rows %}
+    <span class="rounded-md bg-white px-sm py-0.5 text-caption text-gray-light" title="{{ row.title }}">{{ row.title }}: <span class="font-bold text-dark">{{ row.score }}</span></span>
+    {% endfor %}
   </div>
 
-  {# Data pro převzetí návrhu čte JS z data-atributů. Zápis proběhne až
-     uložením formuláře (skrytá pole classification_source / suggestion_id
-     doplní JS do formuláře). #}
-  <button
-    type="button"
-    class="flex h-10 items-center gap-sm rounded-md bg-navy px-lg font-heading font-bold text-white transition-colors hover:bg-navy/90"
-    data-advisor-apply
-    data-classification="{{ suggestion.classification.value }}"
-    data-suggestion-id="{{ suggestion.suggestion_id }}"
-  >
-    <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#hotovo"></use></svg>
-    <span>Použít tuto úroveň</span>
-  </button>
-  <p class="text-caption text-gray-light">Úroveň můžete v poli klasifikace i po převzetí ručně změnit.</p>
+  {# Akce vedle sebe. „Použít" předvyplní klasifikaci (JS z data-atributů,
+     zápis až uložením formuláře); „Zeptat se znovu" vrátí dotazník. #}
+  <div class="flex items-center gap-sm pt-xs">
+    <button
+      type="button"
+      class="flex h-9 flex-1 items-center justify-center gap-sm rounded-md bg-navy px-md font-heading font-bold text-white transition-colors hover:bg-navy/90"
+      data-advisor-apply
+      data-classification="{{ suggestion.classification.value }}"
+      data-suggestion-id="{{ suggestion.suggestion_id }}"
+    >
+      <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#hotovo"></use></svg>
+      <span>Použít úroveň</span>
+    </button>
+    <button
+      type="button"
+      class="flex h-9 items-center gap-xs rounded-md border border-border-gray px-md text-caption text-dark transition-colors hover:bg-white"
+      data-advisor-again
+    >
+      <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#prepsat"></use></svg>
+      <span>Znovu</span>
+    </button>
+  </div>
+  <p class="text-caption text-gray-light">Úroveň lze v poli klasifikace i po převzetí ručně změnit.</p>
 </div>
 {% endif %}

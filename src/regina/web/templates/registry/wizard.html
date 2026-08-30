@@ -118,8 +118,9 @@
       ] %}
       <ol class="flex items-center gap-sm" aria-label="Postup registrace">
         {% for step in steps %}
-        <li class="flex flex-1 items-center gap-sm">
+        <li class="flex flex-1 items-center gap-sm" data-step-indicator="{{ step.num }}">
           <span
+            data-step-dot
             class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-heading text-caption font-bold
               {% if loop.first %}bg-hc-yellow text-black{% else %}bg-border-gray text-dark{% endif %}"
           >{{ step.num }}</span>
@@ -139,11 +140,15 @@
       </div>
       {% endif %}
 
-      <form method="post" action="{{ form_action }}" class="space-y-lg">
+      {# `data-wizard-steps` aktivuje krokový režim (JS `wizard-steps.js`):
+         zobrazí se jedna sekce, mezi kroky se přechází Další/Zpět, odeslat jde
+         až na posledním kroku. Bez JS se ukážou všechny sekce najednou a
+         formulář se odešle jedním tlačítkem — plně funkční i bez skriptu. #}
+      <form method="post" action="{{ form_action }}" class="space-y-lg" data-wizard-steps>
         <input type="hidden" name="csrf_token" value="{{ get_csrf_token(request) }}">
 
         {# ========== Krok 1 — Základní údaje ========== #}
-        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-1">
+        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-1" data-step="1">
           <div class="mb-md flex items-center gap-sm">
             <span class="flex h-7 w-7 items-center justify-center rounded-full bg-hc-yellow font-heading text-caption font-bold text-black">1</span>
             <h2 id="krok-1" class="font-heading text-h4 font-bold text-black">Základní údaje</h2>
@@ -215,7 +220,7 @@
         </section>
 
         {# ========== Krok 2 — Odpovědnost ========== #}
-        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-2">
+        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-2" data-step="2">
           <div class="mb-md flex items-center gap-sm">
             <span class="flex h-7 w-7 items-center justify-center rounded-full bg-border-gray font-heading text-caption font-bold text-dark">2</span>
             <h2 id="krok-2" class="font-heading text-h4 font-bold text-black">Odpovědnost</h2>
@@ -232,7 +237,7 @@
         {# ========== Krok 3 — Provoz a klasifikace ========== #}
         {# Pravý sloupec zůstává prázdný jako vyhrazené místo pro budoucí AI panel
            (ui.md sekce 6). Rozvržení kroku se přidáním našeptávače nezmění. #}
-        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-3">
+        <section class="rounded-lg border border-border-gray bg-white p-lg" aria-labelledby="krok-3" data-step="3">
           <div class="mb-md flex items-center gap-sm">
             <span class="flex h-7 w-7 items-center justify-center rounded-full bg-border-gray font-heading text-caption font-bold text-dark">3</span>
             <h2 id="krok-3" class="font-heading text-h4 font-bold text-black">Provoz a klasifikace</h2>
@@ -310,39 +315,45 @@
               </div>
               <p class="mb-md text-caption text-gray-light">Odpovězte na šest otázek a nechte si navrhnout klasifikaci se zdůvodněním.</p>
 
-              <div class="space-y-sm">
-                {% for otazka in advisor_questions %}
-                <div>
-                  <label for="dim-{{ otazka.dimension }}" class="mb-xs block text-caption font-bold text-dark">{{ otazka.title }}</label>
-                  <select
-                    id="dim-{{ otazka.dimension }}"
-                    name="dim_{{ otazka.dimension }}"
-                    class="h-9 w-full rounded-md border border-border-input bg-white px-sm text-caption text-dark"
-                    data-advisor-answer
-                  >
-                    <option value="">— vyberte —</option>
-                    {% for odpoved in otazka.answers %}
-                    <option value="{{ odpoved.code }}">{{ odpoved.label }}</option>
-                    {% endfor %}
-                  </select>
+              {# Dotazník. JS ho po vygenerování doporučení schová (`data-advisor-form`)
+                 a na jeho místo vloží výsledek do `data-advisor-result`; výška
+                 panelu tak zůstane konstantní. Bez JS zůstává dotazník viditelný. #}
+              <div data-advisor-form>
+                {# Otázky vždy ve dvou sloupcích (2×3), ať panel nepřeteče. #}
+                <div class="grid grid-cols-2 gap-sm">
+                  {% for otazka in advisor_questions %}
+                  <div>
+                    <label for="dim-{{ otazka.dimension }}" class="mb-xs block text-caption font-bold text-dark">{{ otazka.title }}</label>
+                    <select
+                      id="dim-{{ otazka.dimension }}"
+                      name="dim_{{ otazka.dimension }}"
+                      class="h-9 w-full rounded-md border border-border-input bg-white px-sm text-caption text-dark"
+                      data-advisor-answer
+                    >
+                      <option value="">— vyberte —</option>
+                      {% for odpoved in otazka.answers %}
+                      <option value="{{ odpoved.code }}">{{ odpoved.label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
 
-                <div>
+                <div class="mt-sm">
                   <label for="poradce-poznamka" class="mb-xs block text-caption font-bold text-dark">Poznámka (nepovinné)</label>
-                  <textarea
+                  <input
+                    type="text"
                     id="poradce-poznamka"
                     name="poradce_poznamka"
-                    rows="2"
                     placeholder="Krátce doplňte kontext aplikace."
-                    class="w-full rounded-md border border-border-input bg-white px-sm py-1 text-caption text-dark"
+                    class="h-9 w-full rounded-md border border-border-input bg-white px-sm text-caption text-dark"
                     data-advisor-note
-                  ></textarea>
+                  >
                 </div>
 
                 <button
                   type="button"
-                  class="hidden h-9 w-full items-center justify-center gap-sm rounded-md bg-hc-yellow px-md font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+                  class="mt-md hidden h-9 w-full items-center justify-center gap-sm rounded-md bg-hc-yellow px-md font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
                   data-advisor-trigger
                 >
                   <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#ai"></use></svg>
@@ -350,25 +361,54 @@
                 </button>
               </div>
 
-              {# Sem JS vloží panel doporučení (fragment `_advisor_panel.html`). #}
-              <div class="mt-md" data-advisor-result aria-live="polite"></div>
+              {# Sem JS vloží panel doporučení (fragment `_advisor_panel.html`).
+                 Zobrazí se místo dotazníku (ten se schová), takže výška drží. #}
+              <div data-advisor-result aria-live="polite"></div>
             </aside>
           </div>
         </section>
 
-        {# ---------- Patička s akcemi (Zrušit / Registrovat) ---------- #}
-        <div class="flex items-center justify-end gap-sm">
+        {# ---------- Patička s akcemi ----------
+           Bez JS: vidíš jen Zrušit + odeslat (Zpět/Další jsou `hidden`).
+           S JS (`wizard-steps.js`): Zpět a Další se zobrazí a řídí kroky;
+           odesílací tlačítko se ukáže až na posledním kroku. #}
+        <div class="flex items-center justify-between gap-sm">
           <a
             href="{{ cancel_href }}"
             class="flex h-10 items-center rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
           >Zrušit</a>
-          <button
-            type="submit"
-            class="flex h-10 items-center gap-sm rounded-pill bg-hc-yellow px-lg font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
-          >
-            <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#hotovo"></use></svg>
-            <span>{{ submit_label }}</span>
-          </button>
+
+          <div class="flex items-center gap-sm">
+            {# Zpět — o krok zpět. Skryté bez JS i na prvním kroku. #}
+            <button
+              type="button"
+              class="hidden h-10 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+              data-wizard-prev
+            >
+              <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#zpet"></use></svg>
+              <span>Zpět</span>
+            </button>
+
+            {# Další — na další krok. Skryté bez JS i na posledním kroku. #}
+            <button
+              type="button"
+              class="hidden h-10 items-center gap-sm rounded-pill bg-hc-yellow px-lg font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+              data-wizard-next
+            >
+              <span>Další</span>
+              <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+            </button>
+
+            {# Odeslat — bez JS vždy viditelné; s JS jen na posledním kroku. #}
+            <button
+              type="submit"
+              class="flex h-10 items-center gap-sm rounded-pill bg-hc-yellow px-lg font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+              data-wizard-submit
+            >
+              <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#hotovo"></use></svg>
+              <span>{{ submit_label }}</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -377,6 +417,10 @@
   <footer class="border-t border-border-gray bg-white px-lg py-md text-center text-caption text-gray-light">
     <p>© Home Credit International</p>
   </footer>
+
+  {# Krokový režim průvodce (jedna sekce na obrazovku, Další/Zpět). Progresivní
+     vylepšení — bez JS se zobrazí všechny sekce najednou. #}
+  <script src="/static/js/wizard-steps.js" defer></script>
 
   {# AI funkce formuláře (poradce klasifikace, úprava popisu). Wizard nedědí
      z base.html, proto se skript přidává přímo sem (classification-advisor). #}

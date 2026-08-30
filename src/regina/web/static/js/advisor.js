@@ -58,6 +58,7 @@
     var url = root.getAttribute("data-advisor");
     var trigger = root.querySelector("[data-advisor-trigger]");
     var result = root.querySelector("[data-advisor-result]");
+    var questionForm = root.querySelector("[data-advisor-form]");
     var form = ownerForm(root);
     if (!url || !trigger || !result || !form) {
       return;
@@ -85,36 +86,48 @@
         params.set(note.name, note.value);
       }
 
-      // Loading stav: kolečko ve výsledku + zablokované tlačítko s hláškou.
-      var originalHtml = trigger.innerHTML;
-      trigger.disabled = true;
-      trigger.classList.add("opacity-60", "cursor-not-allowed");
-      trigger.innerHTML =
-        '<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-        '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
-        '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>' +
-        "</svg><span>Navrhuji…</span>";
+      // Dotazník schováme a na jeho místo dáme spinner — výška panelu drží
+      // konstantní (dotazník a výsledek se střídají ve stejném prostoru).
+      if (questionForm) {
+        questionForm.classList.add("hidden");
+      }
       result.innerHTML = spinnerMarkup("AI navrhuje klasifikaci, chvíli strpení…");
 
       postForm(url, params, controller.signal)
         .then(function (html) {
+          // Úspěch: dotazník zůstává schovaný, ukáže se panel doporučení.
           result.innerHTML = html;
           bindApply(root);
+          bindAskAgain(root, questionForm, result);
         })
         .catch(function (error) {
           if (error && error.name === "AbortError") {
             return;
           }
+          // Chyba: vrátíme dotazník, ať jde zkusit znovu, a ukážeme hlášku.
+          if (questionForm) {
+            questionForm.classList.remove("hidden");
+          }
           result.innerHTML =
-            '<div class="rounded-md border border-hc-red/40 bg-hc-red/10 p-md text-caption text-hc-red">' +
+            '<div class="mt-md rounded-md border border-hc-red/40 bg-hc-red/10 p-md text-caption text-hc-red">' +
             "Doporučení se teď nepodařilo získat. Zkuste to prosím znovu." +
             "</div>";
-        })
-        .finally(function () {
-          trigger.disabled = false;
-          trigger.classList.remove("opacity-60", "cursor-not-allowed");
-          trigger.innerHTML = originalHtml;
         });
+    });
+  }
+
+  // Napojí „Zeptat se znovu" v panelu doporučení: vrátí dotazník na místo
+  // výsledku, ať uživatel může upravit odpovědi a nechat navrhnout znovu.
+  function bindAskAgain(root, questionForm, result) {
+    var again = result.querySelector("[data-advisor-again]");
+    if (!again) {
+      return;
+    }
+    again.addEventListener("click", function () {
+      result.innerHTML = "";
+      if (questionForm) {
+        questionForm.classList.remove("hidden");
+      }
     });
   }
 
