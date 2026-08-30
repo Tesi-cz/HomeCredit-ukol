@@ -63,4 +63,22 @@
   :focus-visible {
     @apply outline-none ring-2 ring-hc-red ring-offset-2;
   }
+
+  /*
+   * Rozvržení sidebaru na desktopu (od 1024 px, token `desktop`).
+   *
+   * Sidebar je `fixed` (třída v šabloně) přes celou výšku okna, takže scroll
+   * obsahu s ním nehýbe. Aby fixní sidebar obsah nepřekrýval, odsazuje se
+   * hlavní sloupec (`.app-main`) zleva o jeho šířku. Obojí — přilepení
+   * sidebaru i odsazení obsahu — je v JEDNOM media query na stejné mezi, aby
+   * se viditelnost sidebaru a odsazení nemohly rozejít (dřívější potíž, kdy
+   * sidebar překrýval obsah, protože odsazení viselo na jiné třídě).
+   *
+   * Šířka sidebaru je pevných 250 px, shodně s tokenem `sidebar` (`w-sidebar`).
+   */
+  @media (min-width: 1024px) {
+    .app-main {
+      margin-left: 250px;
+    }
+  }
 }

@@ -58,22 +58,19 @@ def landing() -> RedirectResponse:
     return RedirectResponse("/moje", status_code=303)
 
 
-@router.get("/moje", include_in_schema=False)
-def my_applications(
+def _my_applications_context(
     request: Request,
     user: CurrentUserDep,
     session: SessionDep,
-    q: str | None = Query(default=None),
-    page: int = Query(default=1),
-) -> HTMLResponse:
-    """Vykreslí mřížku karet záznamů přihlášené osoby (ui.md sekce 4).
+    q: str | None,
+    page: int,
+) -> dict[str, object]:
+    """Sestaví kontext výpisu „Moje aplikace" — sdílený stránkou i fragmentem.
 
-    Parametry z URL:
-    - `q` — hledání v názvu (bez ohledu na velikost písmen, R3.2),
-    - `page` — stránka výpisu.
-
-    Výpis se omezí na odpovědnou trojici přihlášené osoby (R3.10) v repozitáři;
-    routa jen sestaví filtry, stránkování a jména vlastníků pro karty.
+    Jedno místo, kde se z parametrů URL složí filtry, stránkování a jména
+    vlastníků, aby celá stránka (`GET /moje`) i fragment živého hledání
+    (`GET /moje/fragment`) vykreslovaly z **týchž** dat. Filtruje repozitář nad
+    databází (R3.6); routa nic nepočítá v paměti.
     """
     filters = ListFilters(query=q, page=page, page_size=_PAGE_SIZE)
 
@@ -86,7 +83,7 @@ def my_applications(
     # o prázdný výsledek filtru. Šablona podle toho volí text.
     has_search = bool(q and q.strip())
 
-    context = page_context(
+    return page_context(
         request,
         user=user,
         active_nav="moje",
@@ -97,5 +94,50 @@ def my_applications(
         selected={"q": q or ""},
         has_search=has_search,
     )
+
+
+@router.get("/moje", include_in_schema=False)
+def my_applications(
+    request: Request,
+    user: CurrentUserDep,
+    session: SessionDep,
+    q: str | None = Query(default=None),
+    page: int = Query(default=1),
+) -> HTMLResponse:
+    """Vykreslí mřížku karet záznamů přihlášené osoby (ui.md sekce 4).
+
+    Parametry z URL:
+    - `q` — hledání v názvu (bez ohledu na velikost písmen a diakritiku, R3.2),
+    - `page` — stránka výpisu.
+
+    Výpis se omezí na odpovědnou trojici přihlášené osoby (R3.10) v repozitáři;
+    routa jen sestaví filtry, stránkování a jména vlastníků pro karty.
+    """
+    context = _my_applications_context(request, user, session, q, page)
     templates = request.app.state.templates
     return templates.TemplateResponse(request, "mine/list.html", context)
+
+
+@router.get("/moje/fragment", include_in_schema=False)
+def my_applications_fragment(
+    request: Request,
+    user: CurrentUserDep,
+    session: SessionDep,
+    q: str | None = Query(default=None),
+    page: int = Query(default=1),
+) -> HTMLResponse:
+    """Vrátí **jen** výsledky výpisu (mřížka + stránkování) pro živé hledání.
+
+    Endpoint živého hledání (ui.md sekce 4, R3.2): obrazovka `/moje` posílá při
+    psaní `q` sem a vrácený partial vloží do kontejneru výsledků, aniž by
+    přenačetla celou stránku. Renderuje `mine/_results.html` — stejný partial,
+    jaký `mine/list.html` vkládá při prvním načtení, nad **týmž** kontextem
+    (`_my_applications_context`), takže se stránka i fragment nikdy nerozejdou.
+
+    Chráněno stejně jako `/moje` (`require_login` přes `CurrentUserDep`) a
+    omezeno na odpovědnou trojici přihlášené osoby v repozitáři (R3.10) —
+    fragment tedy nemůže obejít autorizaci ani zobrazit cizí záznamy.
+    """
+    context = _my_applications_context(request, user, session, q, page)
+    templates = request.app.state.templates
+    return templates.TemplateResponse(request, "mine/_results.html", context)

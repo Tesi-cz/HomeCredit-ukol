@@ -133,6 +133,17 @@ def _register_middleware(app: FastAPI) -> None:
             set_correlation_id(None)
 
         response.headers[CORRELATION_HEADER] = correlation_id
+
+        # Dynamické stránky se nesmějí cachovat. Bez toho prohlížeč heuristicky
+        # cachuje GET odpovědi a po Post/Redirect/Get vrátí stale HTML — např.
+        # po přepnutí role se seznam ukázal se starým stavem, dokud uživatel
+        # nedal F5, a to nekonzistentně (stejný redirect URL i flash query
+        # string pro oba směry změny → shoda v cache). `no-store` to vyřeší
+        # obecně pro celou appku. Statické zdroje (`/static`) se necháváme
+        # cachovat, ty mají vlastní hlavičky ze StaticFiles.
+        if not request.url.path.startswith("/static"):
+            response.headers["Cache-Control"] = "no-store"
+
         logger.info(
             "Požadavek zpracován",
             extra={
@@ -167,10 +178,13 @@ def _render_not_found(request: Request) -> Response:
     který nepotřebuje přihlášenou osobu ani navigaci, takže se vykreslí i u
     nepřihlášeného požadavku. Bez stack trace a bez konfigurace.
     """
+    from regina.web.templating import asset_version
+
     templates = request.app.state.templates
     context = {
         "request": request,
         "app_name": request.app.state.settings.app_name,
+        "asset_version": asset_version(),
     }
     return templates.TemplateResponse(
         request, "errors/404.html", context, status_code=404

@@ -283,10 +283,13 @@ def render_forbidden(request: Request) -> HTMLResponse:
     navigaci, takže stránka nespadne ani u nepřihlášeného požadavku. Ukazuje se
     jen kód, český popis a odkaz zpět — žádný stack trace ani konfigurace.
     """
+    from regina.web.templating import asset_version
+
     templates = request.app.state.templates
     context = {
         "request": request,
         "app_name": request.app.state.settings.app_name,
+        "asset_version": asset_version(),
     }
     return templates.TemplateResponse(
         request, "errors/403.html", context, status_code=403

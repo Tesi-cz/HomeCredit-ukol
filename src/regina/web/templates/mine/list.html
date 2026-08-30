@@ -1,7 +1,4 @@
 {% extends "base.html" %}
-{% from "components/badges.html" import state_badge, classification_badge %}
-{% from "components/pagination.html" import pagination_bar %}
-{% from "components/empty_state.html" import empty_state %}
 
 {#
   Obrazovka „Moje aplikace" (ui.md sekce 4, R3.10/3.11/3.12).
@@ -9,16 +6,17 @@
   Vstupní obrazovka po přihlášení. Zobrazuje záznamy, kde je přihlášený uživatel
   členem odpovědné trojice — tedy ty, které smí editovat. Nad hero blokem
   s hledáním a výzvou k registraci je mřížka karet: tři sloupce na desktopu,
-  dva na tabletu, jeden na mobilu (ui.md sekce 4 „3 sloupce na desktopu, 2 na
-  tabletu, 1 na mobilu").
+  dva na tabletu, jeden na mobilu.
 
-  Výčtové hodnoty (stav, klasifikace) se vykreslují jako české popisky přes
-  badge komponenty — nikdy strojový kód (R13.11). Klasifikace bez hodnoty se
-  ukáže jako „Neklasifikováno" (R3.8), o což se stará `classification_badge`.
-  Karta odkazuje na detail `/registr/{id}` (routa je úkol 15; odkaz míří už teď).
+  Samotné výsledky (mřížka + stránkování + prázdné stavy) jsou v partialu
+  `mine/_results.html`, vykresleném uvnitř kontejneru `#vysledky-moje`.
+  Živé hledání (viz JS níže) tentýž partial načítá z `GET /moje/fragment` a
+  obsahem kontejneru ho nahrazuje — filtruje pořád databáze (R3.6), JS jen
+  posílá dotaz a překresluje výsledek.
 
-  Hledání se odesílá metodou GET, takže zůstane v query stringu a stránkování
-  je přes `page_url` zachová.
+  Hledání se odesílá i metodou GET (submit formuláře), takže funguje i bez
+  JavaScriptu (progresivní vylepšení): bez JS se chová jako dřív, s JS se
+  filtruje živě při psaní.
 #}
 
 {% block title %}Moje aplikace{% endblock %}
@@ -34,8 +32,17 @@
     </div>
 
     <div class="mt-md flex flex-col gap-sm desktop:mt-0 desktop:flex-row desktop:items-center">
-      {# Hledání podle názvu (R3.2). #}
-      <form method="get" action="/moje" role="search" class="relative">
+      {# Hledání podle názvu (R3.2). `data-live-search` propojuje formulář s JS
+         živého hledání; `action`/`method=get` zajišťují funkčnost i bez JS. #}
+      <form
+        method="get"
+        action="/moje"
+        role="search"
+        class="relative"
+        data-live-search
+        data-fragment-url="/moje/fragment"
+        data-target="#vysledky-moje"
+      >
         <label for="hledat-moje" class="sr-only">Hledat mezi mými aplikacemi</label>
         <svg class="pointer-events-none absolute left-md top-1/2 h-5 w-5 -translate-y-1/2 text-gray-light" aria-hidden="true">
           <use href="/static/icons/icons.svg#hledat"></use>
@@ -46,6 +53,7 @@
           name="q"
           value="{{ selected.q }}"
           placeholder="Hledat mezi mými aplikacemi..."
+          autocomplete="off"
           class="w-full rounded-full border border-border-input bg-bg-warm py-sm pl-2xl pr-md text-body text-dark placeholder:text-gray-light desktop:w-72"
         >
       </form>
@@ -62,77 +70,15 @@
     </div>
   </div>
 
-  {# ---------- Mřížka karet / prázdný stav ---------- #}
-  {% if applications %}
-  {# Responzivní mřížka: 1 sloupec (mobil) → 2 (tablet, md) → 3 (desktop). #}
-  <div class="grid grid-cols-1 gap-lg md:grid-cols-2 desktop:grid-cols-3">
-    {% for zaznam in applications %}
-    <article class="flex flex-col rounded-lg border border-border-gray bg-white p-lg transition-shadow hover:shadow-md">
-
-      {# Hlavička karty: ikona útvaru a badge stavu. #}
-      <div class="flex items-start justify-between gap-md">
-        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-bg-warm text-navy" aria-hidden="true">
-          <svg class="h-5 w-5"><use href="/static/icons/icons.svg#moje-aplikace"></use></svg>
-        </span>
-        {{ state_badge(zaznam.lifecycle_state | lifecycle_enum) }}
-      </div>
-
-      {# Název (odkaz na detail) a útvar. #}
-      <h3 class="mt-md font-heading text-h4 font-bold leading-snug text-black">
-        <a href="/registr/{{ zaznam.id }}" class="text-navy hover:underline">{{ zaznam.name }}</a>
-      </h3>
-      <p class="mt-xs text-caption text-gray-light">{{ zaznam.department }}</p>
-
-      {# Zkrácený popis (line-clamp), aby karty držely stejnou výšku. #}
-      {% if zaznam.description %}
-      <p class="mt-sm line-clamp-3 text-body text-gray">{{ zaznam.description }}</p>
-      {% endif %}
-
-      {# Badge klasifikace (Neklasifikováno pro NULL, R3.8). #}
-      <div class="mt-md">
-        {{ classification_badge(zaznam.classification | classification_enum) }}
-      </div>
-
-      {# Patička karty: datum poslední úpravy a odkaz Detail. #}
-      <div class="mt-lg flex items-center justify-between border-t border-border-gray/60 pt-md">
-        <span class="text-caption text-gray-light">Upraveno {{ zaznam.updated_at | datum }}</span>
-        <a href="/registr/{{ zaznam.id }}" class="flex items-center gap-xs text-caption font-bold text-navy hover:underline">
-          <span>Detail</span>
-          <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
-        </a>
-      </div>
-    </article>
-    {% endfor %}
+  {# ---------- Výsledky (živě překreslované) ---------- #}
+  {# `aria-live="polite"` oznámí čtečce změnu výsledků po dopsání hledání. #}
+  <div id="vysledky-moje" aria-live="polite">
+    {% include "mine/_results.html" %}
   </div>
-
-  {# Stránkování s textem „Zobrazeno X–Y z N záznamů" (ui.md sekce 5, R3.5). #}
-  <div class="overflow-hidden rounded-lg border border-border-gray bg-white">
-    {{ pagination_bar(pagination, request) }}
-  </div>
-
-  {% elif has_search %}
-  {# Prázdný výsledek hledání — ne skutečný prázdný stav, jen filtr nic nenašel. #}
-  {{ empty_state(
-      nadpis="Žádná aplikace neodpovídá hledání",
-      popis="Zkuste upravit hledaný výraz."
-  ) }}
-
-  {% else %}
-  {# Skutečný prázdný stav: uživatel není v žádné odpovědné trojici (R3.12).
-     Vysvětlení a výzva k registraci nové aplikace. #}
-  {% call empty_state(
-      nadpis="Zatím nespravujete žádnou aplikaci",
-      popis="Nejste vedeni jako vlastník, zástupce ani technický správce u žádného záznamu. Začněte registrací nové aplikace."
-  ) %}
-    <a
-      href="{{ primary_action.href }}"
-      class="flex items-center justify-center gap-sm rounded-pill bg-hc-yellow px-lg py-sm font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
-    >
-      <svg class="h-5 w-5 shrink-0" aria-hidden="true"><use href="/static/icons/icons.svg#nova-aplikace"></use></svg>
-      <span>Registrovat novou aplikaci</span>
-    </a>
-  {% endcall %}
-  {% endif %}
 
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/live-search.js" defer></script>
 {% endblock %}

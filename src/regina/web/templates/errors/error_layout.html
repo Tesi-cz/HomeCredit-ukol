@@ -17,7 +17,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Chyba{% endblock %} — {{ app_name }}</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css{% if asset_version %}?v={{ asset_version }}{% endif %}">
 </head>
 <body class="flex min-h-screen flex-col bg-bg-light font-body text-dark">
   <main class="flex flex-1 items-center justify-center px-lg py-2xl">

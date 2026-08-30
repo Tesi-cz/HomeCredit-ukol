@@ -120,27 +120,24 @@ def _owner_names(session: SessionDep, applications: list[Application]) -> dict[u
     return {row[0]: row[1] for row in rows}
 
 
-@router.get("/registr", include_in_schema=False)
-def registry_list(
+def _registry_list_context(
     request: Request,
     user: CurrentUserDep,
     session: SessionDep,
-    q: str | None = Query(default=None),
-    utvar: str | None = Query(default=None),
-    klasifikace: str | None = Query(default=None),
-    stav: str | None = Query(default=None),
-    vse: bool = Query(default=False),
-    page: int = Query(default=1),
-) -> HTMLResponse:
-    """Vykreslí tabulkový výpis registru s filtry a stránkováním.
+    *,
+    q: str | None,
+    utvar: str | None,
+    klasifikace: str | None,
+    stav: str | None,
+    vse: bool,
+    page: int,
+) -> dict[str, object]:
+    """Sestaví kontext výpisu registru — sdílený stránkou i fragmentem.
 
-    Parametry z URL:
-    - `q` — hledání v názvu (R3.2),
-    - `utvar` — filtr útvaru (hodnota z konfigurovaného výčtu),
-    - `klasifikace` — filtr klasifikace; `NONE` = jen neklasifikované (R3.8),
-    - `stav` — filtr stavu (strojový kód); prázdné = „Vše" (R3.3),
-    - `vse` — přepínač „Zobrazit i vyřazené" (R3.9),
-    - `page` — stránka výpisu.
+    Jedno místo, kde se z parametrů URL složí filtry, stránkování, jména
+    vlastníků a předvyplnění formuláře, aby celá stránka (`GET /registr`) i
+    fragment živého filtrování (`GET /registr/fragment`) vykreslovaly z **týchž**
+    dat. Filtruje repozitář nad databází (R3.6); routa nic nepočítá v paměti.
     """
     settings = request.app.state.settings
 
@@ -178,7 +175,7 @@ def registry_list(
         "vse": vse,
     }
 
-    context = page_context(
+    return page_context(
         request,
         user=user,
         active_nav="registr",
@@ -192,8 +189,84 @@ def registry_list(
         selected=selected,
         is_admin=user.role == Role.ADMIN,
     )
+
+
+@router.get("/registr", include_in_schema=False)
+def registry_list(
+    request: Request,
+    user: CurrentUserDep,
+    session: SessionDep,
+    q: str | None = Query(default=None),
+    utvar: str | None = Query(default=None),
+    klasifikace: str | None = Query(default=None),
+    stav: str | None = Query(default=None),
+    vse: bool = Query(default=False),
+    page: int = Query(default=1),
+) -> HTMLResponse:
+    """Vykreslí tabulkový výpis registru s filtry a stránkováním.
+
+    Parametry z URL:
+    - `q` — hledání v názvu (R3.2),
+    - `utvar` — filtr útvaru (hodnota z konfigurovaného výčtu),
+    - `klasifikace` — filtr klasifikace; `NONE` = jen neklasifikované (R3.8),
+    - `stav` — filtr stavu (strojový kód); prázdné = „Vše" (R3.3),
+    - `vse` — přepínač „Zobrazit i vyřazené" (R3.9),
+    - `page` — stránka výpisu.
+    """
+    context = _registry_list_context(
+        request,
+        user,
+        session,
+        q=q,
+        utvar=utvar,
+        klasifikace=klasifikace,
+        stav=stav,
+        vse=vse,
+        page=page,
+    )
     templates = request.app.state.templates
     return templates.TemplateResponse(request, "registry/list.html", context)
+
+
+@router.get("/registr/fragment", include_in_schema=False)
+def registry_list_fragment(
+    request: Request,
+    user: CurrentUserDep,
+    session: SessionDep,
+    q: str | None = Query(default=None),
+    utvar: str | None = Query(default=None),
+    klasifikace: str | None = Query(default=None),
+    stav: str | None = Query(default=None),
+    vse: bool = Query(default=False),
+    page: int = Query(default=1),
+) -> HTMLResponse:
+    """Vrátí **jen** výsledky výpisu (tabulka + stránkování) pro živé filtrování.
+
+    Endpoint živého filtrování Registru (ui.md sekce 5, R3.2/R3.3/R3.9):
+    obrazovka `/registr` sem při psaní v hledání i při změně kteréhokoli filtru
+    posílá celý formulář a vrácený partial vloží do kontejneru výsledků, aniž by
+    přenačetla celou stránku. Renderuje `registry/_results.html` — stejný
+    partial, jaký `registry/list.html` vkládá při prvním načtení, nad **týmž**
+    kontextem (`_registry_list_context`), takže se stránka i fragment nikdy
+    nerozejdou.
+
+    Chráněno stejně jako `/registr` (`require_login` přes `CurrentUserDep`);
+    obě role čtou celý registr (R2). Cesta `/registr/fragment` je definována
+    **před** `/registr/{id}`, aby ji dynamická cesta nezachytila jako id.
+    """
+    context = _registry_list_context(
+        request,
+        user,
+        session,
+        q=q,
+        utvar=utvar,
+        klasifikace=klasifikace,
+        stav=stav,
+        vse=vse,
+        page=page,
+    )
+    templates = request.app.state.templates
+    return templates.TemplateResponse(request, "registry/_results.html", context)
 
 
 # --- Detail záznamu (úkol 15.1, ui.md sekce 7, R4) -----------------------
@@ -289,7 +362,9 @@ def application_detail(
         request,
         user=user,
         active_nav="registr",
-        section_title=application.name or "Detail aplikace",
+        # V horní liště je vždy „Detail aplikace", aby bylo jasné, na jaké
+        # obrazovce uživatel je; konkrétní název nese breadcrumb a hlavní karta.
+        section_title="Detail aplikace",
         application=application,
         owner=owner,
         deputy=deputy,

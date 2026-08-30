@@ -56,10 +56,15 @@ def test_explicit_other_state_disables_default_hide() -> None:
     assert "!= 'DECOMMISSIONED'" not in sql
 
 
-def test_name_search_is_case_insensitive() -> None:
-    """Hledání porovnává lower(name) LIKE lower(:q) (R3.2)."""
+def test_name_search_is_case_and_accent_insensitive() -> None:
+    """Hledání porovnává f_unaccent(lower(name)) LIKE f_unaccent(lower(:q)) (R3.2).
+
+    `f_unaccent` (IMMUTABLE obal nad rozšířením `unaccent`) odstraní diakritiku
+    na obou stranách, takže „pre" najde „pře", „prě", „před"; `lower` doplňuje
+    necitlivost na velikost písmen.
+    """
     sql = _where_sql(ListFilters(query="Portál"))
-    assert "lower(applications.name) LIKE lower(" in sql
+    assert "f_unaccent(lower(applications.name)) LIKE f_unaccent(lower(" in sql
 
 
 def test_blank_query_does_not_filter_name() -> None:
@@ -180,7 +185,7 @@ def test_trio_filter_combines_with_search() -> None:
     """Trojice se kombinuje s hledáním podle názvu (hero „Moje aplikace" má vyhledávání)."""
     user_id = uuid.UUID("55555555-5555-5555-5555-555555555555")
     sql = _where_sql(ListFilters(trio_member_id=user_id, query="Portál"))
-    assert "lower(applications.name) LIKE lower(" in sql
+    assert "f_unaccent(lower(applications.name)) LIKE f_unaccent(lower(" in sql
     assert f"applications.owner_user_id = '{user_id}'" in sql
 
 

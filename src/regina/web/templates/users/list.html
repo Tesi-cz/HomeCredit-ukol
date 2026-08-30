@@ -25,28 +25,31 @@
 {% block title %}Uživatelé{% endblock %}
 
 {% block content %}
-<section class="space-y-lg">
+<section class="space-y-md">
 
-  {# ---------- Informace, že obrazovka nezakládá ani nemaže identity (R11.3) ---------- #}
-  <div class="flex items-start gap-md rounded-lg border border-border-gray bg-bg-warm p-lg text-body text-dark">
-    <svg class="mt-0.5 h-5 w-5 shrink-0 text-gray-light" aria-hidden="true">
+  {# ---------- Poznámka o rozsahu obrazovky (R11.3) ----------
+     Dřív celá sekce; teď decentní jednořádková poznámka malým písmem nahoře —
+     obsah zůstává (spravují se jen role, identity řeší poskytovatel identity),
+     jen nezabírá celý blok. #}
+  <p class="flex items-start gap-sm text-caption text-gray-light">
+    <svg class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true">
       <use href="/static/icons/icons.svg#uzivatele"></use>
     </svg>
-    <p>
-      Tato obrazovka spravuje pouze aplikační role. Identity se nezakládají ani
-      nemažou zde — jejich životní cyklus je na poskytovateli identity. Sloupec
-      Zdroj role rozlišuje, zda role přišla z poskytovatele identity, nebo byla
-      nastavena lokálně.
-    </p>
-  </div>
+    <span>
+      Spravují se pouze aplikační role. Identity se zde nezakládají ani nemažou —
+      jejich životní cyklus je na poskytovateli identity. Sloupec Zdroj role
+      rozlišuje, zda role přišla z poskytovatele identity, nebo byla nastavena
+      lokálně.
+    </span>
+  </p>
 
   {# ---------- Tabulka / prázdný stav ---------- #}
   {% if rows %}
+  {# Jeden scrollbar: tabulka nemá vlastní vnitřní posuvník, scrolluje stránka. #}
   <div class="overflow-hidden rounded-lg border border-border-gray bg-white">
-    <div class="max-h-[70vh] overflow-auto">
+    <div>
       <table class="w-full border-collapse text-left text-body">
-        {# Sticky hlavička (vzor tabulky ze Správy registru, ui.md sekce 8). #}
-        <thead class="sticky top-0 z-10 bg-white">
+        <thead class="bg-white">
           <tr class="border-b border-border-gray text-caption uppercase tracking-wide text-gray-light">
             <th scope="col" class="px-lg py-md font-bold">Jméno</th>
             <th scope="col" class="px-lg py-md font-bold">E-mail</th>

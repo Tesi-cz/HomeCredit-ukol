@@ -1,0 +1,86 @@
+{% from "components/badges.html" import state_badge, classification_badge %}
+{% from "components/pagination.html" import pagination_bar %}
+{% from "components/empty_state.html" import empty_state %}
+
+{#
+  Výsledky obrazovky „Moje aplikace" (mřížka karet + stránkování + prázdné
+  stavy). Vyčleněno z `mine/list.html` do partialu, aby ho šlo vykreslit
+  samostatně pro **živé hledání** (fragment endpoint `GET /moje/fragment`):
+  celá stránka renderuje partial uvnitř kontejneru `#vysledky-moje`, fragment
+  vrací jen tenhle partial a JS jím obsah kontejneru nahradí.
+
+  Nezávisí na `base.html` — jsou to jen vnitřek kontejneru, žádný `{% block %}`.
+  Vstupy z kontextu jsou stejné pro obě cesty (`applications`, `owner_names`,
+  `pagination`, `has_search`, `primary_action`, `request`).
+#}
+
+{% if applications %}
+{# Responzivní mřížka: 1 sloupec (mobil) → 2 (tablet, md) → 3 (desktop). #}
+<div class="grid grid-cols-1 gap-lg md:grid-cols-2 desktop:grid-cols-3">
+  {% for zaznam in applications %}
+  <article class="flex flex-col rounded-lg border border-border-gray bg-white p-lg transition-shadow hover:shadow-md">
+
+    {# Hlavička karty: ikona útvaru a badge stavu. #}
+    <div class="flex items-start justify-between gap-md">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-bg-warm text-navy" aria-hidden="true">
+        <svg class="h-5 w-5"><use href="/static/icons/icons.svg#moje-aplikace"></use></svg>
+      </span>
+      {{ state_badge(zaznam.lifecycle_state | lifecycle_enum) }}
+    </div>
+
+    {# Název (odkaz na detail) a útvar. #}
+    <h3 class="mt-md font-heading text-h4 font-bold leading-snug text-black">
+      <a href="/registr/{{ zaznam.id }}" class="text-navy hover:underline">{{ zaznam.name }}</a>
+    </h3>
+    <p class="mt-xs text-caption text-gray-light">{{ zaznam.department }}</p>
+
+    {# Zkrácený popis (line-clamp), aby karty držely stejnou výšku. #}
+    {% if zaznam.description %}
+    <p class="mt-sm line-clamp-3 text-body text-gray">{{ zaznam.description }}</p>
+    {% endif %}
+
+    {# Badge klasifikace (Neklasifikováno pro NULL, R3.8). #}
+    <div class="mt-md">
+      {{ classification_badge(zaznam.classification | classification_enum) }}
+    </div>
+
+    {# Patička karty: datum poslední úpravy a odkaz Detail. #}
+    <div class="mt-lg flex items-center justify-between border-t border-border-gray/60 pt-md">
+      <span class="text-caption text-gray-light">Upraveno {{ zaznam.updated_at | datum }}</span>
+      <a href="/registr/{{ zaznam.id }}" class="flex items-center gap-xs text-caption font-bold text-navy hover:underline">
+        <span>Detail</span>
+        <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+      </a>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+{# Stránkování s textem „Zobrazeno X–Y z N záznamů" (ui.md sekce 5, R3.5). #}
+<div class="mt-lg overflow-hidden rounded-lg border border-border-gray bg-white">
+  {{ pagination_bar(pagination, request) }}
+</div>
+
+{% elif has_search %}
+{# Prázdný výsledek hledání — ne skutečný prázdný stav, jen filtr nic nenašel. #}
+{{ empty_state(
+    nadpis="Žádná aplikace neodpovídá hledání",
+    popis="Zkuste upravit hledaný výraz."
+) }}
+
+{% else %}
+{# Skutečný prázdný stav: uživatel není v žádné odpovědné trojici (R3.12).
+   Vysvětlení a výzva k registraci nové aplikace. #}
+{% call empty_state(
+    nadpis="Zatím nespravujete žádnou aplikaci",
+    popis="Nejste vedeni jako vlastník, zástupce ani technický správce u žádného záznamu. Začněte registrací nové aplikace."
+) %}
+  <a
+    href="{{ primary_action.href }}"
+    class="flex items-center justify-center gap-sm rounded-pill bg-hc-yellow px-lg py-sm font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+  >
+    <svg class="h-5 w-5 shrink-0" aria-hidden="true"><use href="/static/icons/icons.svg#nova-aplikace"></use></svg>
+    <span>Registrovat novou aplikaci</span>
+  </a>
+{% endcall %}
+{% endif %}

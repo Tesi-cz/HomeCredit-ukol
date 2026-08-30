@@ -5,25 +5,41 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %} — {{ app_name }}</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  {# Cache-busting: `?v=<otisk CSS>` se změní s obsahem app.css, takže prohlížeč
+     po redeploy nedrží starou verzi CSS z cache (viz templating.asset_version). #}
+  <link rel="stylesheet" href="/static/css/app.css{% if asset_version %}?v={{ asset_version }}{% endif %}">
 </head>
 <body class="min-h-screen bg-bg-light font-body text-dark">
   {#
     Základní rozvržení (ui.md sekce 3): tmavý sidebar vlevo, horní lišta a obsah
     vpravo, patička dole. Navigace se vykresluje z jediného zdroje pravdy
     (`nav_items`); aktivní položku určuje `active_nav`, ne pevný text na stránce.
-    Responzivita (R13.10): od 1024 px (token `desktop`) je sidebar statický a
-    stále viditelný. Pod 1024 px se sbalí mimo obrazovku a otevře ho mobilní
-    tlačítko v horní liště přes skrytý přepínač #sidebar-toggle (peer-checkbox,
-    čisté CSS bez JavaScriptu). Kliknutí do ztmaveného pozadí sidebar zavře.
+    Responzivita (R13.10): od 1024 px (token `desktop`) je sidebar `fixed` přes
+    celou výšku okna a stále viditelný — scroll obsahu s ním nehýbe, odhlášení
+    dole ani navigace nikam neutíkají. Aby fixní sidebar nepřekrýval obsah, je
+    hlavní sloupec (`.app-main`) odsazený zleva o jeho šířku; odsazení i to, že
+    je sidebar vidět, řídí **jedno** společné `@media (min-width:1024px)` v
+    `input.css`, takže se nemůžou rozejít. Pod 1024 px se sidebar sbalí mimo
+    obrazovku a otevře ho mobilní tlačítko v horní liště přes skrytý přepínač
+    #sidebar-toggle (peer-checkbox, čisté CSS). Kliknutí do ztmaveného pozadí
+    sidebar zavře.
   #}
   <input type="checkbox" id="sidebar-toggle" class="peer sr-only">
 
   <div class="flex min-h-screen">
 
-    {# ---------- Sidebar ---------- #}
+    {# ---------- Sidebar ----------
+       Dva režimy podle šířky:
+       - Pod 1024 px: `fixed` off-canvas (`-translate-x-full`), otevírá ho
+         přepínač (`peer-checked`), překrývá obsah záměrně jako mobilní menu.
+       - Od 1024 px: `sticky top-0 h-screen` — zůstává v layout flow, takže
+         obsah **nikdy nepřekrývá** (flex ho dá vedle), a přitom je při scrollu
+         přilepený přes celou výšku okna. `sticky` přebije `fixed` (position),
+         proto se nemusí obsah ručně odsazovat.
+       `flex-col` s `nav flex-1 overflow-y-auto` drží odhlášení dole; při mnoha
+       položkách se scrolluje jen uvnitř navigace, ne celý sidebar. #}
     <aside
-      class="fixed inset-y-0 left-0 z-30 flex w-sidebar -translate-x-full flex-col bg-dark text-white transition-transform duration-200 peer-checked:translate-x-0 desktop:static desktop:translate-x-0"
+      class="app-sidebar fixed inset-y-0 left-0 z-30 flex w-sidebar -translate-x-full flex-col bg-dark text-white transition-transform duration-200 peer-checked:translate-x-0 desktop:translate-x-0"
     >
       {# Logo a podtitul #}
       <div class="px-lg pt-lg pb-md">
@@ -53,10 +69,12 @@
           {% endfor %}
         </ul>
 
-        {# Primární akce „Nová aplikace" (žlutý pill button). #}
+        {# Primární akce „Nová aplikace" (žlutý pill button). Užší (80 %) a
+           vycentrovaný, aby přes celou šířku sidebaru nepůsobil těžkopádně;
+           `whitespace-nowrap` drží popisek na jednom řádku. #}
         <a
           href="{{ primary_action.href }}"
-          class="mt-lg flex items-center justify-center gap-sm rounded-pill bg-hc-yellow px-md py-sm font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
+          class="mx-auto mt-lg flex w-[80%] items-center justify-center gap-sm whitespace-nowrap rounded-pill bg-hc-yellow px-md py-sm font-heading font-bold text-black transition-colors hover:bg-hc-yellow-light"
         >
           <svg class="h-5 w-5 shrink-0" aria-hidden="true">
             <use href="/static/icons/icons.svg#{{ primary_action.icon }}"></use>
@@ -101,8 +119,12 @@
       aria-hidden="true"
     ></label>
 
-    {# ---------- Hlavní sloupec ---------- #}
-    <div class="flex min-w-0 flex-1 flex-col">
+    {# ---------- Hlavní sloupec ----------
+       Odsazení zleva o šířku sidebaru řeší explicitní CSS pravidlo (input.css,
+       třída `.app-main`) uvnitř `@media (min-width:1024px)` — stejná mez, na
+       které se sidebar v `.app-sidebar` přilepí. Tím jsou viditelnost sidebaru
+       a odsazení obsahu vázané na jedno místo a nemůžou se rozejít. #}
+    <div class="app-main flex min-w-0 flex-1 flex-col">
 
       {# Horní lišta: název sekce vlevo, hledání vpravo, mobilní menu. #}
       <header class="sticky top-0 z-10 flex items-center gap-md border-b border-border-gray bg-white px-lg py-md">
@@ -150,5 +172,9 @@
       </footer>
     </div>
   </div>
+
+  {# Skripty na konci těla. Většina obrazovek žádné nemá; ty, které ano
+     (např. živé hledání), je vloží přes tento blok. #}
+  {% block scripts %}{% endblock %}
 </body>
 </html>

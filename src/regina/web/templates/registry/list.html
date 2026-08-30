@@ -1,7 +1,4 @@
 {% extends "base.html" %}
-{% from "components/badges.html" import state_badge, classification_badge %}
-{% from "components/pagination.html" import pagination_bar %}
-{% from "components/empty_state.html" import empty_state %}
 
 {#
   Obrazovka Registr (ui.md sekce 5, R3.1/3.4/3.5/3.8/3.9).
@@ -23,198 +20,140 @@
 {% block title %}Registr{% endblock %}
 
 {% block content %}
-<section class="space-y-lg">
+<section class="space-y-md">
 
-  {# ---------- Akce nad výpisem: Exportovat CSV (R10.1, jen Admin) ----------
-     Tlačítko vede na /export/registr se zkopírovaným query stringem aktuálního
-     výpisu, takže export honoruje stejné filtry jako obrazovka (R10.3). Vidí
-     ho jen Admin (`is_admin`) — pohodlnost nad vynucením na backendu
-     (`require_export`, R2.5). #}
-  {% if is_admin %}
-  <div class="flex justify-end">
-    <a
-      href="/export/registr{% if request.url.query %}?{{ request.url.query }}{% endif %}"
-      class="flex h-10 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
-    >
-      <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#export"></use></svg>
-      <span>Exportovat CSV</span>
-    </a>
-  </div>
-  {% endif %}
+  {# ---------- Kompaktní pruh filtrů (jeden řádek na desktopu) ----------
+     Aby zůstalo co nejvíc svislého místa na tabulku, jsou filtry v jedné řadě
+     (od breakpointu `desktop`) a popisky polí jsou skryté (`sr-only`) —
+     orientaci nese placeholder u hledání a první volba „Vše" u selectů. Na
+     užších obrazovkách se řada zabalí (flex-wrap).
 
-  {# ---------- Pruh filtrů ---------- #}
-  <form method="get" action="/registr" class="rounded-lg border border-border-gray bg-white p-lg">
-    <div class="grid grid-cols-1 gap-md desktop:grid-cols-4">
+     Živé filtrování: `data-live-search` propojí formulář s JS (live-search.js),
+     který při psaní v hledání i při změně kteréhokoli filtru (útvar,
+     klasifikace, stav, přepínač vyřazených) načte fragment `/registr/fragment`
+     a nahradí jím obsah kontejneru výsledků — bez tlačítka Filtrovat. Filtruje
+     pořád databáze (R3.6); JS jen posílá dotaz a překresluje. `method=get`
+     zajišťuje funkčnost i bez JavaScriptu (progresivní vylepšení).
 
-      {# Hledání podle názvu (R3.2). #}
-      <div class="desktop:col-span-2">
-        <label for="filtr-q" class="mb-xs block text-caption font-bold text-dark">Hledat podle názvu</label>
-        <div class="relative">
-          <svg class="pointer-events-none absolute left-md top-1/2 h-5 w-5 -translate-y-1/2 text-gray-light" aria-hidden="true">
-            <use href="/static/icons/icons.svg#hledat"></use>
-          </svg>
-          <input
-            type="search"
-            id="filtr-q"
-            name="q"
-            value="{{ selected.q }}"
-            placeholder="Hledat v registru..."
-            class="w-full rounded-md border border-border-input bg-bg-warm py-sm pl-2xl pr-md text-body text-dark placeholder:text-gray-light"
-          >
-        </div>
-      </div>
-
-      {# Filtr útvaru (R3.3). #}
-      <div>
-        <label for="filtr-utvar" class="mb-xs block text-caption font-bold text-dark">Útvar</label>
-        <select
-          id="filtr-utvar"
-          name="utvar"
-          class="w-full rounded-md border border-border-input bg-white py-sm px-md text-body text-dark"
-        >
-          <option value="">Vše</option>
-          {% for utvar in departments %}
-          <option value="{{ utvar }}" {% if selected.utvar == utvar %}selected{% endif %}>{{ utvar }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      {# Filtr klasifikace (R3.3, R3.8). Hodnota NONE = jen neklasifikované. #}
-      <div>
-        <label for="filtr-klasifikace" class="mb-xs block text-caption font-bold text-dark">Klasifikace</label>
-        <select
-          id="filtr-klasifikace"
-          name="klasifikace"
-          class="w-full rounded-md border border-border-input bg-white py-sm px-md text-body text-dark"
-        >
-          <option value="">Vše</option>
-          {% for klasifikace in classifications %}
-          <option value="{{ klasifikace.value }}" {% if selected.klasifikace == klasifikace.value %}selected{% endif %}>{{ label(klasifikace) }}</option>
-          {% endfor %}
-          <option value="NONE" {% if selected.klasifikace == "NONE" %}selected{% endif %}>{{ NO_CLASSIFICATION_LABEL }}</option>
-        </select>
-      </div>
-
-      {# Filtr stavu (R3.3). Prázdná volba = „Vše"; konkrétní stav se respektuje
-         přesně, i „Vyřazená". #}
-      <div>
-        <label for="filtr-stav" class="mb-xs block text-caption font-bold text-dark">Stav</label>
-        <select
-          id="filtr-stav"
-          name="stav"
-          class="w-full rounded-md border border-border-input bg-white py-sm px-md text-body text-dark"
-        >
-          <option value="">Vše</option>
-          {% for stav in lifecycle_states %}
-          <option value="{{ stav.value }}" {% if selected.stav == stav.value %}selected{% endif %}>{{ label(stav) }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      {# Přepínač „Zobrazit i vyřazené" (R3.9, kritérium úkolu). Samostatná volba
-         vedle výběru stavu: bez zvoleného stavu zapne zahrnutí vyřazených. #}
-      <div class="flex items-end">
-        <label class="flex cursor-pointer items-center gap-sm text-body text-dark">
-          <input
-            type="checkbox"
-            name="vse"
-            value="true"
-            {% if selected.vse %}checked{% endif %}
-            class="h-4 w-4 rounded border-border-input text-navy"
-          >
-          <span>Zobrazit i vyřazené</span>
-        </label>
-      </div>
-
-      {# Odeslání filtrů. Reset míří na čistou cestu bez parametrů. #}
-      <div class="flex items-end justify-end gap-sm desktop:col-span-2">
-        <a
-          href="/registr"
-          class="flex h-10 items-center rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
-        >Zrušit filtry</a>
-        <button
-          type="submit"
-          class="flex h-10 items-center gap-sm rounded-md bg-navy px-lg font-heading font-bold text-white transition-colors hover:bg-navy/90"
-        >
-          <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#hledat"></use></svg>
-          <span>Filtrovat</span>
-        </button>
-      </div>
+     Export CSV (R10.1, jen Admin) je součástí tohoto pruhu vpravo — honoruje
+     aktuální filtry přes zkopírovaný query string (R10.3). Vynucení je na
+     backendu (`require_export`, R2.5); zde jde jen o umístění akce. #}
+  <form
+    method="get"
+    action="/registr"
+    class="flex flex-wrap items-center gap-sm rounded-lg border border-border-gray bg-white p-md"
+    data-live-search
+    data-fragment-url="/registr/fragment"
+    data-target="#vysledky-registr"
+  >
+    {# Hledání podle názvu (R3.2) — roztáhne se a spolkne volné místo řádku. #}
+    <div class="relative min-w-[200px] flex-1">
+      <label for="filtr-q" class="sr-only">Hledat podle názvu</label>
+      <svg class="pointer-events-none absolute left-md top-1/2 h-5 w-5 -translate-y-1/2 text-gray-light" aria-hidden="true">
+        <use href="/static/icons/icons.svg#hledat"></use>
+      </svg>
+      <input
+        type="search"
+        id="filtr-q"
+        name="q"
+        value="{{ selected.q }}"
+        placeholder="Hledat podle názvu..."
+        autocomplete="off"
+        class="h-10 w-full rounded-md border border-border-input bg-bg-warm pl-2xl pr-md text-body text-dark placeholder:text-gray-light"
+      >
     </div>
+
+    {# Filtr útvaru (R3.3). Změna filtruje ihned (live-search.js). #}
+    <label for="filtr-utvar" class="sr-only">Útvar</label>
+    <select
+      id="filtr-utvar"
+      name="utvar"
+      class="h-10 rounded-md border border-border-input bg-white px-md text-body text-dark"
+    >
+      <option value="">Útvar: vše</option>
+      {% for utvar in departments %}
+      <option value="{{ utvar }}" {% if selected.utvar == utvar %}selected{% endif %}>{{ utvar }}</option>
+      {% endfor %}
+    </select>
+
+    {# Filtr klasifikace (R3.3, R3.8). Hodnota NONE = jen neklasifikované. #}
+    <label for="filtr-klasifikace" class="sr-only">Klasifikace</label>
+    <select
+      id="filtr-klasifikace"
+      name="klasifikace"
+      class="h-10 rounded-md border border-border-input bg-white px-md text-body text-dark"
+    >
+      <option value="">Klasifikace: vše</option>
+      {% for klasifikace in classifications %}
+      <option value="{{ klasifikace.value }}" {% if selected.klasifikace == klasifikace.value %}selected{% endif %}>{{ label(klasifikace) }}</option>
+      {% endfor %}
+      <option value="NONE" {% if selected.klasifikace == "NONE" %}selected{% endif %}>{{ NO_CLASSIFICATION_LABEL }}</option>
+    </select>
+
+    {# Filtr stavu (R3.3). Prázdná volba = „Vše"; konkrétní stav se respektuje
+       přesně, i „Vyřazená". #}
+    <label for="filtr-stav" class="sr-only">Stav</label>
+    <select
+      id="filtr-stav"
+      name="stav"
+      class="h-10 rounded-md border border-border-input bg-white px-md text-body text-dark"
+    >
+      <option value="">Stav: vše</option>
+      {% for stav in lifecycle_states %}
+      <option value="{{ stav.value }}" {% if selected.stav == stav.value %}selected{% endif %}>{{ label(stav) }}</option>
+      {% endfor %}
+    </select>
+
+    {# Přepínač „Zobrazit i vyřazené" (R3.9) — hezčí zaškrtávátko přes
+       peer-checked, ve stejné výšce jako ostatní pole. #}
+    <label class="flex h-10 cursor-pointer items-center gap-sm rounded-md border border-border-input bg-bg-warm px-md text-body text-dark transition-colors hover:border-navy">
+      <input
+        type="checkbox"
+        name="vse"
+        value="true"
+        {% if selected.vse %}checked{% endif %}
+        class="peer sr-only"
+      >
+      <span
+        class="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-border-input bg-white transition-colors peer-checked:border-navy peer-checked:bg-navy peer-focus-visible:ring-2 peer-focus-visible:ring-hc-red peer-focus-visible:ring-offset-2"
+        aria-hidden="true"
+      >
+        <svg class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </span>
+      <span class="whitespace-nowrap font-bold">Vyřazené</span>
+    </label>
+
+    {# Zrušit filtry — reset na čistou cestu bez parametrů. #}
+    <a
+      href="/registr"
+      class="flex h-10 items-center rounded-md border border-border-gray px-md text-body text-dark transition-colors hover:bg-bg-warm"
+      title="Zrušit filtry"
+    >Zrušit</a>
+
+    {# Bez JS je tlačítko jediný způsob odeslání; s JS ho skript skryje.
+       Export CSV není zde (sekundární akce pro málokoho) — bydlí decentně dole
+       v liště stránkování, viz `registry/_results.html`. #}
+    <button
+      type="submit"
+      data-live-search-submit
+      class="flex h-10 items-center gap-sm rounded-md bg-navy px-lg font-heading font-bold text-white transition-colors hover:bg-navy/90"
+    >
+      <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#hledat"></use></svg>
+      <span>Filtrovat</span>
+    </button>
   </form>
 
-  {# ---------- Tabulka / prázdný stav ---------- #}
-  {% if applications %}
-  <div class="overflow-hidden rounded-lg border border-border-gray bg-white">
-    <div class="max-h-[70vh] overflow-auto">
-      <table class="w-full border-collapse text-left text-body">
-        {# Sticky hlavička (ui.md sekce 5). #}
-        <thead class="sticky top-0 z-10 bg-white">
-          <tr class="border-b border-border-gray text-caption uppercase tracking-wide text-gray-light">
-            <th scope="col" class="px-lg py-md font-bold">Název</th>
-            <th scope="col" class="px-lg py-md font-bold">Vlastník</th>
-            <th scope="col" class="px-lg py-md font-bold">Útvar</th>
-            <th scope="col" class="px-lg py-md font-bold">Klasifikace</th>
-            <th scope="col" class="px-lg py-md font-bold">AI model</th>
-            <th scope="col" class="px-lg py-md font-bold">Stav</th>
-            {% if is_admin %}
-            <th scope="col" class="px-lg py-md text-right font-bold">Akce</th>
-            {% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for zaznam in applications %}
-          {# Zebra striping (ui.md sekce 5): sudé řádky mají teplé pozadí. #}
-          <tr class="border-b border-border-gray/60 {% if loop.index0 is odd %}bg-bg-warm{% endif %} hover:bg-warm-bg">
-            <td class="px-lg py-md">
-              <a href="/registr/{{ zaznam.id }}" class="font-bold text-navy hover:underline">{{ zaznam.name }}</a>
-            </td>
-            <td class="px-lg py-md text-dark">{{ owner_names.get(zaznam.owner_user_id, "—") }}</td>
-            <td class="px-lg py-md text-dark">{{ zaznam.department }}</td>
-            <td class="px-lg py-md">
-              {{ classification_badge(zaznam.classification | classification_enum) }}
-            </td>
-            <td class="px-lg py-md text-dark">{{ zaznam.ai_model or "—" }}</td>
-            <td class="px-lg py-md">
-              {{ state_badge(zaznam.lifecycle_state | lifecycle_enum) }}
-            </td>
-            {% if is_admin %}
-            <td class="px-lg py-md">
-              <div class="flex items-center justify-end gap-xs">
-                <a
-                  href="/registr/{{ zaznam.id }}"
-                  class="flex h-8 items-center gap-xs rounded-md border border-border-gray px-md text-caption text-dark transition-colors hover:bg-bg-warm"
-                  title="Přepsat klasifikaci"
-                >
-                  <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#prepsat"></use></svg>
-                  <span>Přepsat klasifikaci</span>
-                </a>
-                <a
-                  href="/registr/{{ zaznam.id }}"
-                  class="flex h-8 items-center gap-xs rounded-md border border-border-gray px-md text-caption text-hc-red transition-colors hover:bg-hc-red/10"
-                  title="Vyřadit"
-                >
-                  <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#vyradit"></use></svg>
-                  <span>Vyřadit</span>
-                </a>
-              </div>
-            </td>
-            {% endif %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# Stránkování s textem „Zobrazeno X–Y z N záznamů" (ui.md sekce 5, R3.5). #}
-    {{ pagination_bar(pagination, request) }}
+  {# ---------- Výsledky (živě překreslované) ----------
+     `aria-live="polite"` oznámí čtečce změnu výsledků po úpravě filtrů. #}
+  <div id="vysledky-registr" aria-live="polite">
+    {% include "registry/_results.html" %}
   </div>
-  {% else %}
-  {{ empty_state(
-      nadpis="Žádné záznamy neodpovídají filtrům",
-      popis="Zkuste upravit hledaný výraz nebo filtry, případně zobrazit i vyřazené záznamy."
-  ) }}
-  {% endif %}
 
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/live-search.js" defer></script>
 {% endblock %}

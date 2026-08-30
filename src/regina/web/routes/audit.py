@@ -121,25 +121,23 @@ def _actor_options(session: SessionDep) -> list[dict[str, str]]:
     ]
 
 
-@router.get("/audit", include_in_schema=False)
-def audit_list(
+def _audit_list_context(
     request: Request,
     user: AuditReaderDep,
     session: SessionDep,
-    akce: str | None = Query(default=None),
-    akter: str | None = Query(default=None),
-    od: str | None = Query(default=None),
-    do: str | None = Query(default=None),
-    page: int = Query(default=1),
-) -> HTMLResponse:
-    """Vykreslí výpis auditního logu s filtry a stránkováním (R8.4, R8.7).
+    *,
+    akce: str | None,
+    akter: str | None,
+    od: str | None,
+    do: str | None,
+    page: int,
+) -> dict[str, object]:
+    """Sestaví kontext výpisu auditu — sdílený stránkou i fragmentem.
 
-    Vyhrazeno roli Admin (`require_read_audit`); role User skončí 403 + audit
-    `ACCESS_DENIED` (R8.4, R2.2). Parametry z URL:
-    - `akce` — filtr typu akce (strojový kód `AuditAction`); prázdné = „Vše",
-    - `akter` — filtr aktéra (`id` osoby); prázdné = všichni,
-    - `od` / `do` — časový rozsah (kalendářní dny, ISO datum),
-    - `page` — stránka výpisu.
+    Jedno místo, kde se z parametrů URL složí filtry, stránkování, volby aktérů
+    a předvyplnění formuláře, aby celá stránka (`GET /audit`) i fragment živého
+    filtrování (`GET /audit/fragment`) vykreslovaly z **týchž** dat. Filtruje
+    repozitář nad databází (R3.6/R8.7); routa nic nepočítá v paměti.
     """
     action = _parse_action(akce)
     actor_id = _parse_uuid(akter)
@@ -166,7 +164,7 @@ def audit_list(
         "do": do or "",
     }
 
-    context = page_context(
+    return page_context(
         request,
         user=user,
         active_nav="audit",
@@ -179,5 +177,60 @@ def audit_list(
         application_entity_type=ENTITY_APPLICATION,
         selected=selected,
     )
+
+
+@router.get("/audit", include_in_schema=False)
+def audit_list(
+    request: Request,
+    user: AuditReaderDep,
+    session: SessionDep,
+    akce: str | None = Query(default=None),
+    akter: str | None = Query(default=None),
+    od: str | None = Query(default=None),
+    do: str | None = Query(default=None),
+    page: int = Query(default=1),
+) -> HTMLResponse:
+    """Vykreslí výpis auditního logu s filtry a stránkováním (R8.4, R8.7).
+
+    Vyhrazeno roli Admin (`require_read_audit`); role User skončí 403 + audit
+    `ACCESS_DENIED` (R8.4, R2.2). Parametry z URL:
+    - `akce` — filtr typu akce (strojový kód `AuditAction`); prázdné = „Vše",
+    - `akter` — filtr aktéra (`id` osoby); prázdné = všichni,
+    - `od` / `do` — časový rozsah (kalendářní dny, ISO datum),
+    - `page` — stránka výpisu.
+    """
+    context = _audit_list_context(
+        request, user, session, akce=akce, akter=akter, od=od, do=do, page=page
+    )
     templates = request.app.state.templates
     return templates.TemplateResponse(request, "audit/list.html", context)
+
+
+@router.get("/audit/fragment", include_in_schema=False)
+def audit_list_fragment(
+    request: Request,
+    user: AuditReaderDep,
+    session: SessionDep,
+    akce: str | None = Query(default=None),
+    akter: str | None = Query(default=None),
+    od: str | None = Query(default=None),
+    do: str | None = Query(default=None),
+    page: int = Query(default=1),
+) -> HTMLResponse:
+    """Vrátí **jen** výsledky výpisu (tabulka + stránkování) pro živé filtrování.
+
+    Endpoint živého filtrování auditu (ui.md sekce 9, R8.7): obrazovka `/audit`
+    sem při změně kteréhokoli filtru posílá celý formulář a vrácený partial vloží
+    do kontejneru výsledků, aniž by přenačetla celou stránku. Renderuje
+    `audit/_results.html` — stejný partial, jaký `audit/list.html` vkládá při
+    prvním načtení, nad **týmž** kontextem (`_audit_list_context`), takže se
+    stránka i fragment nikdy nerozejdou.
+
+    Vyhrazeno roli Admin stejně jako `/audit` (`require_read_audit`); role User
+    skončí 403 + audit `ACCESS_DENIED` — fragment tedy neobejde autorizaci.
+    """
+    context = _audit_list_context(
+        request, user, session, akce=akce, akter=akter, od=od, do=do, page=page
+    )
+    templates = request.app.state.templates
+    return templates.TemplateResponse(request, "audit/_results.html", context)

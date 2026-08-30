@@ -14,10 +14,13 @@ Klíčová pravidla dotazu:
   i `DECOMMISSIONED` — respektuje se přesně a výchozí skrytí se **neuplatní**.
   Rozlišení „nezvoleno" vs. „zvoleno DECOMMISSIONED" nese `None` vs. konkrétní
   hodnota v `state`; kvůli tomu je to samostatný parametr, ne řetězec v URL.
-- **Hledání bez ohledu na velikost písmen** *(R3.2)*. `lower(name) LIKE lower(:q)`
-  nad funkcionálním indexem `ix_applications_lower_name`. Zástupné znaky ve
-  vyhledávaném výrazu (`%`, `_`, zpětné lomítko) se escapují, aby uživatelský vstup
-  nefungoval jako žolík. Prázdný nebo jen-mezerový výraz = bez filtru názvu.
+- **Hledání bez ohledu na velikost písmen a diakritiku** *(R3.2)*.
+  `f_unaccent(lower(name)) LIKE f_unaccent(lower(:q))` nad funkcionálním indexem
+  `ix_applications_unaccent_lower_name`. `f_unaccent` je IMMUTABLE obal nad
+  rozšířením `unaccent` (migrace `a1b2c3d4e5f6`), který odstraní diakritiku —
+  takže „pre" najde „pře", „prě", „před". Zástupné znaky ve vyhledávaném výrazu
+  (`%`, `_`, zpětné lomítko) se escapují, aby uživatelský vstup nefungoval jako
+  žolík. Prázdný nebo jen-mezerový výraz = bez filtru názvu.
 - **Filtry** *(R3.3)* jsou rovnosti na `department`, `classification`,
   `lifecycle_state`, kombinovatelné. `classification=None` neznamená filtr;
   pro záznamy bez klasifikace („Neklasifikováno") existuje výslovný přepínač
@@ -121,11 +124,18 @@ def _apply_filters(stmt: Select, filters: ListFilters) -> Select:
     Sdílí je stránkovací dotaz i `COUNT`, aby celkový počet vždy odpovídal
     přesně té množině, kterou uživatel vidí (jen bez `LIMIT`/`OFFSET`).
     """
-    # Hledání podle názvu bez ohledu na velikost písmen (R3.2).
+    # Hledání podle názvu bez ohledu na velikost písmen A diakritiku (R3.2).
+    # `f_unaccent(lower(...))` na obou stranách LIKE odstraní diakritiku i
+    # velikost písmen, takže „pre" najde „pře", „prě", „před" apod. `f_unaccent`
+    # je IMMUTABLE obal nad `unaccent` (migrace a1b2c3d4e5f6); dotaz využívá
+    # funkcionální index `ix_applications_unaccent_lower_name`. Filtruje databáze,
+    # ne aplikace v paměti (R3.6).
     if filters.query and filters.query.strip():
         pattern = f"%{_escape_like(filters.query.strip())}%"
         stmt = stmt.where(
-            func.lower(Application.name).like(func.lower(pattern), escape=_LIKE_ESCAPE)
+            func.f_unaccent(func.lower(Application.name)).like(
+                func.f_unaccent(func.lower(pattern)), escape=_LIKE_ESCAPE
+            )
         )
 
     # Filtry rovnosti (R3.3), kombinovatelné.

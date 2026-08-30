@@ -44,15 +44,15 @@ RUN groupadd --system regina \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Zdrojový strom včetně self-hostovaných fontů (R13.9) — fonty leží ve
+# `src/regina/web/static/fonts/` a jsou verzované, takže se zkopírují spolu se
+# zbytkem `src`. Žádný samostatný krok pro fonty proto není potřeba.
 COPY src ./src
 
 # Konfigurace Alembic. Entrypoint podle ni pri startu spusti `alembic upgrade
 # head` jeste pred serverem (R12.8). script_location v alembic.ini je relativni
 # (src/regina/db/migrations), takze funguje s WORKDIR /app a zkopirovanym src.
 COPY alembic.ini ./alembic.ini
-
-# Fonty se servírují z aplikace, ne z CDN (R13.9).
-COPY brand-assets/fonts/ ./src/regina/web/static/fonts/
 
 # Přeložené CSS z prvního stupně.
 COPY --from=ui /build/app.css ./src/regina/web/static/css/app.css

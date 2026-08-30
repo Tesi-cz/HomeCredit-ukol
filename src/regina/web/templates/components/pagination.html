@@ -12,16 +12,33 @@
   volající šablony (import bez `with context`); `page_url` ho potřebuje pro
   sestavení odkazů se zachovanými filtry.
 
+  Volitelný `export_href`: když je předán (registr pro roli Admin), vykreslí se
+  vpravo v liště malý decentní odkaz „Export CSV". Je to sekundární akce pro
+  málokoho, proto bydlí dole u stránkování, ne mezi primárními filtry.
+
   Použití:
     from "components/pagination.html" import pagination_bar
     pagination_bar(pagination, request)
+    pagination_bar(pagination, request, export_href="/export/registr?...")
 #}
-{% macro pagination_bar(pagination, request) %}
+{% macro pagination_bar(pagination, request, export_href=none) %}
 <nav class="flex flex-col items-center justify-between gap-md border-t border-border-gray bg-white px-lg py-md desktop:flex-row" aria-label="Stránkování">
-  {# Text rozsahu — normativní český tvar dle R13. #}
-  <p class="text-caption text-gray-light">
-    Zobrazeno {{ pagination.from_index }}–{{ pagination.to_index }} z {{ pagination.total }} záznamů
-  </p>
+  {# Text rozsahu (normativní český tvar dle R13) + volitelný Export CSV. #}
+  <div class="flex items-center gap-md">
+    <p class="text-caption text-gray-light">
+      Zobrazeno {{ pagination.from_index }}–{{ pagination.to_index }} z {{ pagination.total }} záznamů
+    </p>
+    {% if export_href %}
+    <a
+      href="{{ export_href }}"
+      class="flex items-center gap-xs text-caption text-gray-light transition-colors hover:text-navy hover:underline"
+      title="Exportovat aktuální výběr do CSV"
+    >
+      <svg class="h-4 w-4" aria-hidden="true"><use href="/static/icons/icons.svg#export"></use></svg>
+      <span>Export CSV</span>
+    </a>
+    {% endif %}
+  </div>
 
   {% if pagination.total_pages > 1 %}
   <ul class="flex items-center gap-xs">

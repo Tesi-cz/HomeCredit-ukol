@@ -37,6 +37,14 @@
       {% if person %}
       <p class="truncate text-body font-bold text-dark">{{ person.display_name }}</p>
       <p class="truncate text-caption text-gray">{{ person.job_title or "Pozice neuvedena" }}</p>
+      {# E-mail osoby jako klikací odkaz (mailto), aby šel rovnou napsat. #}
+      <a
+        href="mailto:{{ person.email }}"
+        class="mt-xs flex items-center gap-xs text-caption text-navy hover:underline"
+      >
+        <svg class="h-4 w-4 shrink-0 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#email"></use></svg>
+        <span class="truncate">{{ person.email }}</span>
+      </a>
       {% else %}
       <p class="text-body text-gray-light">Osoba není k dispozici</p>
       {% endif %}
@@ -47,12 +55,29 @@
 {% block content %}
 <section class="space-y-lg">
 
-  {# ---------- Drobenka (R4.1, R4.10) ---------- #}
-  <nav aria-label="Drobenková navigace" class="flex items-center gap-xs text-caption text-gray">
-    <a href="/registr" class="font-bold text-navy hover:underline">Registr</a>
-    <svg class="h-4 w-4 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
-    <span class="truncate text-dark">{{ application.name }}</span>
-  </nav>
+  {# ---------- Drobenka + Zpět (R4.1, R4.10) ----------
+     Breadcrumb „Registr › {název}" větším písmem (text-h4) a na stejném řádku
+     vpravo tlačítko Zpět na výpis registru. #}
+  <div class="flex items-center justify-between gap-md">
+    <nav aria-label="Drobenková navigace" class="flex min-w-0 items-center gap-sm text-h4 font-heading font-bold">
+      <a href="/registr" class="text-navy hover:underline">Registr</a>
+      <svg class="h-5 w-5 shrink-0 text-gray-light" aria-hidden="true"><use href="/static/icons/icons.svg#chevron-right"></use></svg>
+      <span class="truncate text-black">{{ application.name }}</span>
+    </nav>
+
+    {# Zpět tam, odkud jsi přišel: `history.back()` vrátí na předchozí obrazovku
+       (Registr i Moje aplikace) podle toho, odkud byl detail otevřen. Když
+       historie není (přímý vstup přes odkaz), fallback míří na Registr i bez
+       JavaScriptu. #}
+    <a
+      href="/registr"
+      onclick="if (window.history.length > 1) { history.back(); return false; }"
+      class="flex h-10 shrink-0 items-center gap-sm rounded-md border border-border-gray px-lg text-body text-dark transition-colors hover:bg-bg-warm"
+    >
+      <svg class="h-5 w-5" aria-hidden="true"><use href="/static/icons/icons.svg#zpet"></use></svg>
+      <span>Zpět</span>
+    </a>
+  </div>
 
   {# ---------- Indikátor „Pouze pro čtení" (R4.8) ---------- #}
   {% if read_only %}

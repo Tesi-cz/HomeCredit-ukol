@@ -20,7 +20,9 @@ předpřipravený kontext. `initials` počítá iniciály z jména pro avatar.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +47,28 @@ from regina.web.nav import PRIMARY_ACTION, NavItem, visible_nav_items
 # Šablony leží vedle tohoto modulu v `templates/`. Cesta se počítá z umístění
 # souboru, aby fungovala nezávisle na pracovním adresáři (uvicorn i testy).
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+
+# Přeložené CSS pro cache-busting odkazu v base.html (viz `asset_version`).
+_APP_CSS_PATH = Path(__file__).resolve().parent / "static" / "css" / "app.css"
+
+
+@lru_cache(maxsize=1)
+def asset_version() -> str:
+    """Krátký otisk obsahu `app.css` pro cache-busting (`?v=…` u odkazu na CSS).
+
+    Prohlížeč jinak drží starou verzi CSS ve své cache i po redeploy (soubor má
+    pořád stejnou cestu `/static/css/app.css`), takže se změny rozvržení
+    neprojeví, dokud uživatel ručně nepřenačte cache. Připojením otisku obsahu
+    k URL se s každou změnou CSS změní i odkaz, takže si prohlížeč vynuceně
+    stáhne aktuální soubor. Otisk se počítá jednou (obsah se za běhu nemění);
+    když soubor chybí (např. test bez build stupně), vrací se `dev`, aby se
+    šablona nerozbila.
+    """
+    try:
+        digest = hashlib.sha256(_APP_CSS_PATH.read_bytes()).hexdigest()
+    except OSError:
+        return "dev"
+    return digest[:12]
 
 
 def initials(name: str | None) -> str:
@@ -300,6 +324,8 @@ def page_context(
         "request": request,
         "app_name": settings.app_name,
         "app_subtitle": settings.app_subtitle,
+        # Otisk CSS pro cache-busting odkazu v base.html (viz asset_version).
+        "asset_version": asset_version(),
         "user": user,
         "active_nav": active_nav,
         "section_title": section_title,

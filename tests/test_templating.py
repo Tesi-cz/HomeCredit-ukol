@@ -59,10 +59,18 @@ def test_base_and_error_layout_declare_czech_language() -> None:
 
 
 def test_sidebar_collapses_below_desktop_breakpoint() -> None:
-    """Sidebar je pod 1024 px sbalený a od tokenu `desktop` statický (R13.10)."""
+    """Sidebar je pod 1024 px sbalený a od tokenu `desktop` viditelný (R13.10).
+
+    Od desktopu je sidebar `fixed` přes celou výšku okna (třída `.app-sidebar`
+    + `desktop:translate-x-0`) a obsah (`.app-main`) je odsazený zleva o jeho
+    šířku přes `@media (min-width:1024px)` v `input.css`, takže se sidebar
+    nehýbe se scrollem a nepřekrývá obsah.
+    """
     html = (_TEMPLATES_DIR / "base.html").read_text(encoding="utf-8")
     # Výchozí (mobilní) stav: sidebar odsunutý mimo obrazovku.
     assert "-translate-x-full" in html
-    # Od 1024 px (token `desktop`) statický a viditelný.
-    assert "desktop:static" in html
+    # Od 1024 px (token `desktop`) viditelný (posun se ruší).
     assert "desktop:translate-x-0" in html
+    # Fixní sidebar a odsazený hlavní sloupec (hák pro CSS z input.css).
+    assert "app-sidebar" in html
+    assert "app-main" in html

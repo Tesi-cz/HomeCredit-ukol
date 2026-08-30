@@ -221,12 +221,20 @@ def test_detail_renders_all_blocks_for_admin(make_client):
     assert 'href="/registr"' in html
     assert application.name in html
 
-    # Odpovědnost se jmény a pozicemi (R4.3).
+    # Odpovědnost se jmény, pozicemi a e-maily (R4.3).
     assert "Anna Vlastníková" in html
     assert "Produktová vlastnice" in html
     assert "Bořek Zástupce" in html  # zástupce je vyplněn
     assert "Cyril Správný" in html
     assert "Technický lead" in html
+    # E-maily osob v sekci Odpovědnost jako mailto odkazy.
+    assert "mailto:Anna Vlastníková@regina.local" in html
+    assert "mailto:Cyril Správný@regina.local" in html
+
+    # V horní liště je „Detail aplikace", ne název (aby bylo jasné, kde uživatel je).
+    assert "Detail aplikace" in html
+    # Tlačítko Zpět na výpis registru.
+    assert "Zpět" in html
 
     # AI model (R4.7).
     assert "GPT-4o" in html
